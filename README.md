@@ -183,10 +183,10 @@ Which will ensure fresh frontpage data is accessed each time a new client connec
 
 Furthermore, dangerouslySetInnerHTML is as it is: dangerously set inner HTML. It's 'dangerous' as this may (but not necessarily) open security risks if you're not careful but is still the easiest way to go from jQuery to ReactJS. Furthermore, if you'd like onClick functions to be executed without Babelfish or JSX from the front-end, you may need to use dangerouslySetInnerHTML for elements that requires these functions.
 
-To make clearer:
-	1. Replace all DOM-touching statements in your jQuery code with statements that build a string
-	2. Create a new main.jsx file, copy and paste that section of jQuery code in the render method
-	3. Find and replace all mentions of your old Ajax data with this.props
-	4. Return a dangerouslySetInnerHTML with the string you built
+To make clearer
+ 1. Replace all DOM-touching statements in your jQuery code with statements that build a string
+ 2. Create a new main.jsx file, copy and paste that section of jQuery code in the render method
+ 3. Find and replace all mentions of your old Ajax data with this.props
+ 4. Return a dangerouslySetInnerHTML with the string you built
 
 	And so, SEO, and by using FAP.React; you get the cake of SEO and the benefit of consuming your back end too. Enjoy.
