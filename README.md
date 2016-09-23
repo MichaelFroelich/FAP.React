@@ -178,7 +178,7 @@ JsonConvert.DeserializeObject<object>(client.DownloadString("http://127.0.0.1:99
 ```
 Those props will remain as the default props unless further logic is applied in the get method such as:
 ```
-reactivePage.get = (a, b) => client.DownloadString("http://michaelfroelich.com/api/frontpage");
+reactivePage.get = (a, b) => client.DownloadString("http://127.0.0.1:9999/mydatabase");
 ```
 Which will ensure fresh frontpage data is accessed each time a new client connects. If you do not specify a get function, or if it does not return a JSON string, FAP.React will rely on the default props passed from the object's creation. These are default props. 
 
