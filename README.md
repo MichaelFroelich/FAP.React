@@ -43,7 +43,7 @@ Extension of the FAP.Page class (ReactivePage) for server side rendering with Re
   Thread.Sleep(-1); //Never forget to sleep.
   
 ```
-Remember to install [ReactJS](http://reactjs.net/guides/mono.html) if you're using Linux/mono.
+Remember to install [ReactJS](http://reactjs.net/guides/mono.html) if you're using Linux/mono. Alternative, you can use [my build](michaelfroelich.com/VroomJsNative.so).
 
 # How to use from the front end?
 
