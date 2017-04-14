@@ -159,9 +159,9 @@ namespace FAP
                     s[2] = String.Empty;
                 }
                 if (value) {
-                    s[0] = "https://fb.me/react-0.14.0.min.js";
-                    s[1] = "https://fb.me/react-dom-0.14.0.min.js";
-                    s[2] = "http://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js";
+                    s[0] = "https://unpkg.com/react@latest/dist/react.js";
+                    s[1] = "https://unpkg.com/react-dom@latest/dist/react-dom.js";
+                    s[2] = "https://unpkg.com/babel-standalone@6.15.0/babel.min.js";
                 }
                 includeReact = value;
             }
