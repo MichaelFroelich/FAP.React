@@ -354,13 +354,13 @@ namespace FAP
             public object Props;
 
             public string Style = String.Empty;
-
+	    
             public string Metadata = String.Empty;
-
+	    
             public List<string> Scripts = new List<string> {
-				"\n\t\t\t<script src='http://fb.me/react-0.14.0.min.js'></script>",
-				"\n\t\t\t<script src='http://fb.me/react-dom-0.14.0.min.js'></script>",
-				"\n\t\t\t<script src='http://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js'></script>",
+				"\n\t\t\t<script src='https://unpkg.com/react@latest/dist/react.js'></script>",
+				"\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom.js'></script>",
+				"\n\t\t\t<script src='https://unpkg.com/babel-standalone@6.15.0/babel.min.js'></script>",
 				"\n\t\t\t<script src='http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js'></script>"
 			};
         }
