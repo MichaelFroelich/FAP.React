@@ -316,6 +316,9 @@ namespace FAP
                             if (!String.IsNullOrEmpty(s))
                                 output.Append(s);
                         }
+			output.Append("<script>");
+			output.Append(component.RenderJavaScript());
+			output.Append("</script>");
                         output.Append(Component.FOOTER);
                         oldtext = output.ToString();
                     }
