@@ -379,15 +379,13 @@ namespace FAP
             debug = true;
             #endif
             object props = null;
-            if (get != null) {
-                try {
-                    if (base.get != null)
-                        props = JsonConvert.DeserializeObject<object>(base.get(queryString, messageContent));
-                    else if (this.get != null)
-                        props = get(queryString, messageContent);
-                } catch (Exception e) {
-                    Console.Error.WriteLine("11: Json.NET Parse error: " + e.Message);
-                }
+            try {
+                if (base.get != null)
+                    props = JsonConvert.DeserializeObject<object>(base.get(queryString, messageContent));
+                else if (this.get != null)
+                    props = get(queryString, messageContent);
+            } catch (Exception e) {
+                Console.Error.WriteLine("11: Json.NET Parse error: " + e.Message);
             }
             //Do not run the rendering machine if the props are unchanged.
             if (oldprops == null || oldtext == null || debug ||
