@@ -21,9 +21,14 @@ Extension of the FAP.Page class (ReactivePage) for server side rendering with Re
   
   //Define within the lowercase get function whatever logic is used to generate the props
   reactivePage.get = (a, b) => JsonConvert.SerializeObject(new { name = "not the Computer, but in fact " + a });
+  //As of 1.4, this also works too.
+  reactivePage.get = (a, b) => (new { name = "not the Computer, but in fact " + a });
   
   //Direct FAP.React to the script file that defines the component
   reactivePage.IncludeScript("main.jsx");
+  
+  //This is better
+  reactivePage.IncludeScripts (new[] {"jquerymock.js","main.jsx"});
   
   //Includes Angular JS as a hosted library
   reactivePage.IncludeScript("https://ajax.googleapis.com/ajax/libs/angularjs/1.4.9/angular.min.js");
@@ -43,7 +48,7 @@ Extension of the FAP.Page class (ReactivePage) for server side rendering with Re
   Thread.Sleep(-1); //Never forget to sleep.
   
 ```
-Remember to install [ReactJS](http://reactjs.net/guides/mono.html) if you're using Linux/mono. Alternative, you can use [my build](http://www.michaelfroelich.com/VroomJsNative.so).
+Remember to install [ReactJS](http://reactjs.net/guides/mono.html) if you're using Linux/mono. Alternative, you can use [my build](http://www.michaelfroelich.com/VroomJsNative.so). You'll also need v8, 3.14 is available in the Ubuntu repositories and a Windows version is available [here](https://github.com/MichaelFroelich/vroomjs-core/tree/master/native/compiled).
 
 # How to use from the front end?
 
@@ -100,6 +105,10 @@ Such that the folder structure appears as:
 This is essential, as allowing your binary folder to be accessible from your website is a clear and obvious security concern, since it's not terribly difficult to reverse engineer JIT-style binary files such as (quasi)compilations from Java and C#. Yet the client from the front-end will need access to the main.jsx script file. The alternative is doubling the file at two different locations, once for FAP.React and again for the client, but this runs the risk of desynchronising.
 
 Again, do *not* leave your binary folder open, accessible and visible to the outside world.
+
+# How do I get jQuery functions passing the Babelscript validation?
+
+Use a (Mock version of jQuery)[https://github.com/jakerella/jquery-mockjax], as of writing the code you must delete from this file is fairly self explanatory.
 
 Finally...
 
