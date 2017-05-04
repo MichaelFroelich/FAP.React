@@ -1,11 +1,11 @@
 /*
-				GNU GENERAL PUBLIC LICENSE
-		                   Version 3, 29 June 2007
-	 Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
-	 Everyone is permitted to copy and distribute verbatim copies
-	 of this license document, but changing it is not allowed.
+                GNU GENERAL PUBLIC LICENSE
+                           Version 3, 29 June 2007
+     Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+     Everyone is permitted to copy and distribute verbatim copies
+     of this license document, but changing it is not allowed.
 
-	 	Author: Michael J. Froelich
+        Author: Michael J. Froelich
  */
 
 using FAP;
@@ -16,6 +16,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace FAP
 {
@@ -56,6 +58,7 @@ namespace FAP
             Thread.Sleep(-1); //Never forget to sleep.
         }
         */
+        public static string BabelVersion = "6.15.0";
         private static React.TinyIoC.TinyIoCContainer container;
         private IReactComponent component;
         private static bool hasinit = false;
@@ -65,34 +68,54 @@ namespace FAP
         //This unfortunately necessitates using a container, fortunately the container is only accessed if the props are changed
         private static Dictionary<string, Component> defaults = new Dictionary<string, Component>();
 
+        private Component cVars;
+
+        private Component cvars { 
+            get { 
+                if (cVars == null)
+                    cVars = defaults[Path];
+                return cVars;
+            }
+            set {
+                cVars = value;
+            }
+        }
+
+        /// <summary>
+        /// Set a function which will be called when accessing this page through a "get" HTTP method. Return using
+        /// Encoding.BigEndianUnicode for binary files (no warranties, no guarantees).
+        /// </summary>
+        /// <value>The get function</value>
+        public Func<string, string, object> get { get; set; }
+
+        /// <summary>
+        /// Shortest interval in which new javascript has to be loaded, 5 seconds is good.
+        /// </summary>
+        /// <value>Time</value>
+        public int ScriptReloadTime { get; set; }
+
         /// <summary>
         /// Freely accessible default props. Will be overidden if props are returned from a get function.
         /// </summary>
-        public object Props
-        {
-            get 
-            {
-                return defaults[Path].Props;
+        public object Props {
+            get {
+                return cvars.Props;
             }
-            set
-            {
-                defaults[Path].Props = value;
+            set {
+                cvars.Props = value;
             }
         }
 
         private string componentName;
 
-        private string ComponentName
-        {
-            get
-            {
+        private string ComponentName {
+            get {
                 if (component == null) {
-                    componentName = defaults[Path].Name;
+                    componentName = cvars.Name;
                 }
                 return componentName;
             }
-            set
-            {
+            set {
                 componentName = value;
             }
         }
@@ -101,15 +124,12 @@ namespace FAP
         /// Determines whether or not to generate HTML pre-amble, including script includes, 
         /// or to generate just the component's HTML. The default is false. <3 PHP nerds.
         /// </summary>
-        public bool IsSPA
-        {
-            get
-            {
-                return defaults[Path].IsSPA;
+        public bool IsSPA {
+            get {
+                return cvars.IsSPA;
             }
-            set
-            {
-                defaults[Path].IsSPA = value;
+            set {
+                cvars.IsSPA = value;
             }
         }
 
@@ -118,23 +138,42 @@ namespace FAP
         /// <summary>
         /// Set false to not include the jQuery library as a hosted script in the resultant HTML from this page. Set true otherwise. Default is true.
         /// </summary>
-        public bool IncludeJQuery
-        {
-            get
-            {
+        public bool IncludeJQuery {
+            get {
                 return includeJQuery;
             }
 
-            set
-            {
-                var s = defaults[Path].Scripts; //pronounced vares
+            set {
+                var s = cvars.Scripts; //pronounced vares
                 if (!value) {
                     s[3] = String.Empty;
                 }
                 if (value) {
-                    s[3] = "http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js";
+                    s[3] = Component.JQUERY;
                 }
                 includeJQuery = value;
+            }
+        }
+
+        private bool includeBabel = true;
+
+        /// <summary>
+        /// Set false to not include the Babel Script library as a hosted script in the resultant HTML from this page. Also enable the script type as babel for client side transpiling.
+        /// </summary>
+        public bool IncludeBable {
+            get {
+                return includeBabel;
+            }
+
+            set {
+                var s = cvars.Scripts; //pronounced vares
+                if (!value) {
+                    s[2] = String.Empty;
+                }
+                if (value) {
+                    s[2] = Component.BABEL;
+                }
+                includeBabel = value;
             }
         }
 
@@ -143,25 +182,22 @@ namespace FAP
         /// <summary>
         /// Set false to not include the react libraries and babel as a hosted scripts when using the SPA. Set true otherwise. Default is true.
         /// </summary>
-        public bool IncludeReact
-        {
-            get
-            {
+        public bool IncludeReact {
+            get {
                 return includeReact;
             }
 
-            set
-            {
-                var s = defaults[Path].Scripts;
+            set {
+                var s = cvars.Scripts;
                 if (!value) {
                     s[0] = String.Empty;
                     s[1] = String.Empty;
                     s[2] = String.Empty;
                 }
                 if (value) {
-                    s[0] = "https://unpkg.com/react@latest/dist/react.js";
-                    s[1] = "https://unpkg.com/react-dom@latest/dist/react-dom.js";
-                    s[2] = "https://unpkg.com/babel-standalone@6.15.0/babel.min.js";
+                    s[0] = Component.REACT;
+                    s[1] = Component.REACTDOM;
+                    s[2] = Component.BABEL;
                 }
                 includeReact = value;
             }
@@ -189,7 +225,8 @@ namespace FAP
         /// <returns></returns>
         public void IncludeCSS(string Pathname)
         {
-            defaults[Path].Style += "<link rel=\"stylesheet\" href=\"" + Pathname + "\">";
+            cvars = defaults[Path];
+            cvars.Style += "<link rel=\"stylesheet\" href=\"" + Pathname + "\">";
         }
 
         /// <summary>
@@ -200,7 +237,8 @@ namespace FAP
         /// <param name="content">The content of that meta data</param>
         public void AddMeta(string meta, string content)
         {
-            defaults[Path].Metadata += "<meta name=\"" + meta + "\" content=\"" + content + "\">";
+            cvars = defaults[Path];
+            cvars.Metadata += "<meta name=\"" + meta + "\" content=\"" + content + "\">";
         }
 
         /// <summary>
@@ -209,7 +247,8 @@ namespace FAP
         /// <param name="charset"></param>
         public void Charset(string charset)
         {
-            defaults[Path].Metadata += "<meta charset=\"" + charset + "\">";
+            cvars = defaults[Path];
+            cvars.Metadata += "<meta charset=\"" + charset + "\">";
         }
 
         /// <summary>
@@ -219,42 +258,80 @@ namespace FAP
         /// Please remember: the order that you include scripts absolutely does matter.
         /// </summary>
         /// <param name="Pathname">The pathname, beginning from the binary, to the JS/JSX script file to be included.</param>
-        /// <param name="useRenderMachine">True to pass this script to the ReactJS render machine, false for external libraries which will be linked as script sources for your SPA</param>
+        /// <param name="useRenderMachine">True to pass this script to the ReactJS render machine, false for external libraries which will be linked as script sources for your SPA
+        /// Basically, if useRenderMachine = false then this line: cvars.Scripts.Add("<script src='" + Pathname + "'></script>");</param>
         /// <returns></returns>
         public void IncludeScript(string Pathname, bool useRenderMachine = true)
         {
             Initialize();
-            Component cvars = defaults[Path];
-            bool isJsx = Pathname.EndsWith(".jsx");
-            if (IsURL(Pathname)) {
-                if (isJsx) {
+            cvars = defaults[Path];
+            Script s = new Script();
+            s.isJSX = Pathname.EndsWith(".jsx");
+            if (IsURL(Pathname) || !useRenderMachine) {
+                if (s.isJSX) {
                     cvars.Scripts.Add("\n\t\t\t<script type=\"text/babel\" src='" + Pathname + "'></script>");
-                }
-                else {
+                } else {
                     cvars.Scripts.Add("\n\t\t\t<script src='" + Pathname + "'></script>");
                 }
-            }
-            else {
+            } else {
                 try {
                     if (useRenderMachine) {
-                        if (isJsx) {
+                        string currentDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
+                        string scriptFullPath = System.IO.Path.Combine(currentDirectory, Pathname);
+                        if (s.isJSX) {
                             ReactSiteConfiguration.Configuration.SetReuseJavaScriptEngines(false).AddScript(Pathname);
-                        }
-                        else
+                        } else {
                             ReactSiteConfiguration.Configuration.SetReuseJavaScriptEngines(false).AddScriptWithoutTransform(Pathname);
-                    }
-                    else {
-                        if (isJsx) {
-                            cvars.Scripts.Add("\n\t\t\t<script type=\"text/babel\" src='" + Pathname + "'></script>");
                         }
-                        else {
-                            cvars.Scripts.Add("\n\t\t\t<script src='" + Pathname + "'></script>");
+                        if (!cvars.ComponentScriptPathinfo.ContainsKey(scriptFullPath)) {
+                            loadScriptFile(s,scriptFullPath);
+                            cvars.ComponentScriptPathinfo.Add(scriptFullPath, s);
                         }
                     }
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     Console.Error.WriteLine("10: FAP.React script include error: " + e.Message);
                 }
+            }
+        }
+
+        private Script loadScriptFile(Script s, string scriptFullPath)
+        {
+        	s.ComponentScript = File.ReadAllText(scriptFullPath);
+            if (s.isJSX)
+                s.RenderedComponentScript = ReactEnvironment.Current.Babel.Transform(s.ComponentScript);
+            s.Size = new FileInfo(scriptFullPath).Length;
+            s.ScriptPath = scriptFullPath;
+            return s;
+        }
+
+        public void IncludeScripts(IEnumerable<string> Pathnames, bool useRenderMachine = true)
+        {
+            foreach (string s in Pathnames)
+                IncludeScript(s, useRenderMachine);
+        }
+
+        async void scriptRegister()
+        {
+            await Task.Delay(ScriptReloadTime);
+            try {
+                while (defaults != null) {
+                    foreach (Component v in defaults.Values) {
+                        if (v.ComponentScriptPathinfo != null && v.ComponentScriptPathinfo.Count > 0)
+                            foreach (Script s in v.ComponentScriptPathinfo.Values) {
+                                if (!String.IsNullOrEmpty(s.ScriptPath)) {
+                                    FileInfo f = new FileInfo(s.ScriptPath);
+                                    if (f.Exists && f.Length != s.Size) {
+                                        loadScriptFile(s,scriptFullPath);
+                                    } else if (!f.Exists) {
+                                        v.ComponentScriptPathinfo.Remove(s.ScriptPath);
+                                    }
+                                }
+                            }
+                    }
+                    await Task.Delay(ScriptReloadTime);
+                }
+            } catch (Exception e) {
+                Console.Error.WriteLine("13: " + DateTime.UtcNow + " Script Load Error: \n\n" + e.Message);
             }
         }
 
@@ -263,6 +340,7 @@ namespace FAP
         /// </summary>
         public ReactivePage()
         {
+            cvars = defaults[Path];
         }
 
         /// <summary>
@@ -277,7 +355,12 @@ namespace FAP
             //                                          : base(string p, string c, object i)
             Initialize();
             ComponentName = componentName;
-            defaults.Add(path, new Component { Props = initialProps, Name = componentName });
+            defaults.Add(path, new Component {
+                Props = initialProps,
+                Name = componentName
+            });
+            cvars = defaults[Path];
+            Task.Factory.StartNew(scriptRegister);
         }
 
         private object oldprops;
@@ -291,41 +374,71 @@ namespace FAP
         /// <returns></returns>
         public sealed override string Get(string queryString, string messageContent)
         {
-            Component cvars;
-            object props = oldprops;
+            bool debug;
+            #if DEBUG
+            debug = true;
+            #endif
+            object props = null;
             if (get != null) {
                 try {
-                    props = JsonConvert.DeserializeObject<object>(get(queryString, messageContent));
-                }   //Unfortunately, FAP requires for the API to remain Func<string, string, string> and will not recognise the function as <string, string, object>, which would be neat
-                catch (Exception e) {
+                    if (base.get != null)
+                        props = JsonConvert.DeserializeObject<object>(base.get(queryString, messageContent));
+                    else if (this.get != null)
+                        props = get(queryString, messageContent);
+                } catch (Exception e) {
                     Console.Error.WriteLine("11: Json.NET Parse error: " + e.Message);
                 }
             }
             //Do not run the rendering machine if the props are unchanged.
-            if (oldprops == null || oldtext == null || !JToken.DeepEquals(JToken.FromObject(props), JToken.FromObject(oldprops))) {
-                cvars = defaults[Path]; //It's efficient to only use the defaults data structure if props are undefined
-                props = cvars.Props;
+            if (oldprops == null || oldtext == null || debug ||
+                !JToken.DeepEquals(JToken.FromObject(props), JToken.FromObject(oldprops))) {
+                //cvars = defaults[Path]; //It's efficient to only use the defaults data structure if props are undefined
+                if (props == null) {
+                    props = cvars.Props;
+                }
                 oldprops = props;
                 try {
                     var environment = React.AssemblyRegistration.Container.Resolve<IReactEnvironment>();
                     component = environment.CreateComponent(ComponentName, props);
-                    var html = component.RenderHtml(renderServerOnly: true);
+
+                    string html;
+                    bool hasreact = String.IsNullOrEmpty(cvars.Scripts[0]) || String.IsNullOrEmpty(cvars.Scripts[1]);
+                    if (hasreact)
+                        html = component.RenderHtml(false, true);
+                    else
+                        html = component.RenderHtml();
                     if (IsSPA) {
                         var output = new StringBuilder(Component.OPENINGHEADER + cvars.Metadata + cvars.Style + Component.CLOSINGHEADER + html);
-                        foreach (string s in cvars.Scripts) {
-                            if (!String.IsNullOrEmpty(s))
-                                output.Append(s);
+                        int scriptcount = (cvars.Webscriptpack) ? cvars.Scripts.Count : 2;
+                        for(int i = 0 ; i < cvars.Scripts.Count ; i++){
+                            if (!String.IsNullOrEmpty(cvars.Scripts[i]))
+                                output.Append(cvars.Scripts[i]);
                         }
-			output.Append("<script>");
-			output.Append(component.RenderJavaScript());
-			output.Append("</script>");
+                        bool hasBabel = !String.IsNullOrEmpty(cvars.Scripts[2]);
+                        foreach (Script s in cvars.ComponentScriptPathinfo.Values) {
+                            if (hasBabel && s.isJSX) {
+                                output.Append(Component.BableType);
+                            } else {
+                                output.Append(Component.RegularType);
+                            }
+                            if (s.isJSX && !hasBabel) {
+                                if (String.IsNullOrEmpty(s.RenderedComponentScript))
+                                    s.RenderedComponentScript = ReactEnvironment.Current.Babel.Transform(s.ComponentScript);
+                                output.Append(s.RenderedComponentScript);
+                            } else {
+                                output.Append(s.ComponentScript);
+                            }
+                            output.Append("\n\n</script>\n\n");
+                        } 
+                        if (hasreact) /* && hasBabel)
+                            output.Append(Component.BableType + component.RenderJavaScript() + "\n\n</script>\n\n");
+                        else*/
+                            output.Append(Component.RegularType + component.RenderJavaScript() + "\n\n</script>\n\n");
                         output.Append(Component.FOOTER);
                         oldtext = output.ToString();
-                    }
-                    else
+                    } else
                         oldtext = html;
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     Console.Error.WriteLine("12: ReactJS.NET render error: " + e.Message +
                     (e.Message.Contains("Unable to resolve type:") ? "\n\tYou may need to update/upgrade your system" : ""));
                 }
@@ -338,15 +451,21 @@ namespace FAP
             Uri uriResult;
             return Uri.TryCreate(source, UriKind.Absolute, out uriResult) && ((uriResult.Scheme == Uri.UriSchemeHttp) || (uriResult.Scheme == Uri.UriSchemeHttps));
         }
-
         /// <summary>
         /// Private class used as a sort of smart structure
         /// </summary>
         private class Component
         {
-            public bool IsSPA = false;
 
-            public string Name;
+
+            public const string REACT = "\n\t\t\t<script src='https://unpkg.com/react@latest/dist/react.js'></script>";
+            public const string REACTDOM = "\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom.js'></script>";
+            public static readonly string BABEL = "\n\t\t\t<script src='https://unpkg.com/babel-standalone@" + BabelVersion + "/babel.min.js'></script>";
+            public const string JQUERY = "\n\t\t\t<script src='http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js'></script>";
+
+            public const string BableType = "\n\t\t<script type=\"text/babel\">\n\n";
+
+            public const string RegularType = "\n\t\t<script>";
 
             public const string OPENINGHEADER = "<!DOCTYPE html>\n\t<html>\n\t\t<head>\n\t\t\t\n";
 
@@ -354,18 +473,36 @@ namespace FAP
 
             public const string FOOTER = "\n\t\t</body>\n\t</html>";
 
+            public bool Webscriptpack = false;
+
+            public bool IsSPA = false;
+
+            public string Name;
+
             public object Props;
 
             public string Style = String.Empty;
-	    
+
             public string Metadata = String.Empty;
-	    
+
             public List<string> Scripts = new List<string> {
-				"\n\t\t\t<script src='https://unpkg.com/react@latest/dist/react.js'></script>",
-				"\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom.js'></script>",
-				"\n\t\t\t<script src='https://unpkg.com/babel-standalone@6.15.0/babel.min.js'></script>",
-				"\n\t\t\t<script src='http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js'></script>"
-			};
+                REACT,
+                REACTDOM,
+                BABEL,
+                JQUERY
+            };
+
+            public Dictionary<string,Script> ComponentScriptPathinfo = new Dictionary<string,Script>();
+
+        }
+
+        private class Script
+        {
+            public bool isJSX;
+            public string ScriptPath;
+            public string ComponentScript;
+            public string RenderedComponentScript;
+            public long Size;
         }
     }
 }
