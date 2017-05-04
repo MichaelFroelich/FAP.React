@@ -106,7 +106,7 @@ Again, do *not* leave your binary folder open, accessible and visible to the out
 
 # How do I get jQuery functions passing the Babelscript validation?
 
-Use a (Mock version of jQuery)[https://github.com/jakerella/jquery-mockjax], as of writing the code you must delete from this file is fairly self explanatory.
+Sometimes Babel will not validate scripts with jQuery, so use a (Mock version of jQuery)[https://github.com/jakerella/jquery-mockjax], as of writing the code you must delete from this file is fairly self explanatory.
 
 Finally...
 
