@@ -99,7 +99,7 @@ Where each consecutive "../" denotes another directory higher. So this line dire
 Such that the folder structure appears as:
 		
 ```
-/bin/debug/binary.exe
+d/bin/debug/binary.exe
 /js/main.jsx
 ```
 
@@ -119,7 +119,7 @@ Mock scripts are your last ditch method. They ideally have only the minimal amou
 
 # How do I get jQuery functions passing the Babelscript validation?
 
-Sometimes Babel will not validate scripts with jQuery, so use a Mock version of jQuery, like this one name (Mock Jax)[https://github.com/jakerella/jquery-mockjax], as of writing the code you must delete from this file is fairly self explanatory. Once thinned run this `IncludeMockScript("PathToMockJax.js")`
+Sometimes Babel will not validate scripts with jQuery, so use a Mock version of jQuery, like this one named (Mock Jax)[https://github.com/jakerella/jquery-mockjax] , as of writing the code you must delete from this file is fairly self explanatory. Once thinned run this `IncludeMockScript("PathToMockJax.js")`
 
 Finally...
 
