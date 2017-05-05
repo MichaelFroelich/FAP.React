@@ -106,9 +106,19 @@ This is essential, as allowing your binary folder to be accessible from your web
 
 Again, do *not* leave your binary folder open, accessible and visible to the outside world.
 
+### Include variations
+As of v1.4, there are a few ways to include scripts into your project output.
+ 1. `IncludeScript("Path",false)` function, with false. This will render it into the output as <script src="Path"
+ 2. `IncludeScript("Path")` function optionally with true. This will pass it to Babel and paste it as <sсript> Your script here
+ 3. `IncludeMockScript("Path")` function, which will pass it to Babel but not include it in the output anywhere
+ 
+Which you choose is all down to your varying levels of frustration getting whatever code you're expecting a serverside rendering engine to run. You might also want to think about changing the EcmaYear and EcmaStage properties on the static ReactivePage class.
+
 # How do I get jQuery functions passing the Babelscript validation?
 
 Sometimes Babel will not validate scripts with jQuery, so use a (Mock version of jQuery)[https://github.com/jakerella/jquery-mockjax], as of writing the code you must delete from this file is fairly self explanatory.
+
+When all else fails, try something new.
 
 Finally...
 
