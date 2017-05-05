@@ -21,6 +21,8 @@ Extension of the FAP.Page class (ReactivePage) for server side rendering with Re
   
   //Define within the lowercase get function whatever logic is used to generate the props
   reactivePage.get = (a, b) => JsonConvert.SerializeObject(new { name = "not the Computer, but in fact " + a });
+  //This works too. I'll serialise any clearly Json object sent as a string out of good faith to earlier users
+  reactivePage.get = (a, b) => new { name = "not the Computer, but in fact " + a };
   
   //Direct FAP.React to the script file that defines the component
   reactivePage.IncludeScript("main.jsx");
