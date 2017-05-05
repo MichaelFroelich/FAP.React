@@ -565,14 +565,14 @@ namespace FAP
 						int end = urls.LastIndexOf((char)39);
 						string url = urls.Substring(start, end - start);
 						if (i == 3 && EcmaStage != 0) { //There is no point loading the real jQuery at this point
-							output.Append(System.Text.Encoding.UTF8.GetString(client.DownloadData(url))).Append("\n");
+							output.Append(client.DownloadString(url)).Append("\n");
 							url = Component.MOCKJQUERY;
-							string webget = System.Text.Encoding.UTF8.GetString(client.DownloadData(url));
+							string webget = client.DownloadString(url);
 							var jquerymockpath = System.IO.Path.Combine(JsFolder, "jquerymock.js");
 							File.WriteAllText(jquerymockpath, webget.ToString());
 							ReactSiteConfiguration.Configuration.SetReuseJavaScriptEngines(false).AddScript(jquerymockpath);
 						} else if (IsURL(url)) {
-							string webget = System.Text.Encoding.UTF8.GetString(client.DownloadData(url));
+							string webget = client.DownloadString(url);
 							if (url.EndsWith(".jsx"))
 								output.Append(ReactEnvironment.Current.Babel.Transform(webget));
 							else
