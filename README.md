@@ -28,7 +28,8 @@ Extension of the FAP.Page class (ReactivePage) for server side rendering with Re
   reactivePage.IncludeScript("main.jsx");
   
   //This is better
-  reactivePage.IncludeScripts (new[] {"jquerymock.js","main.jsx"});
+  reactivePage.IncludeScripts (new[] {"jquerymock.js","main.jsx"}); //Don't actually include mock files like this
+  reactivePage.IncludeMockScripts( new[] {"jquerymock.js","whatareyoudoinginhere.js"});
   
   //Includes Angular JS as a hosted library
   reactivePage.IncludeScript("https://ajax.googleapis.com/ajax/libs/angularjs/1.4.9/angular.min.js");
@@ -114,11 +115,11 @@ As of v1.4, there are a few ways to include scripts into your project output.
  
 Which you choose is all down to your varying levels of frustration getting whatever code you're expecting a serverside rendering engine to run. You might also want to think about changing the EcmaYear and EcmaStage properties on the static ReactivePage class.
 
+Mock scripts are your last ditch method. They ideally have only the minimal amount of code necessary to allow Babel validation.
+
 # How do I get jQuery functions passing the Babelscript validation?
 
-Sometimes Babel will not validate scripts with jQuery, so use a (Mock version of jQuery)[https://github.com/jakerella/jquery-mockjax], as of writing the code you must delete from this file is fairly self explanatory.
-
-When all else fails, try something new.
+Sometimes Babel will not validate scripts with jQuery, so use a Mock version of jQuery, like this one name (Mock Jax)[https://github.com/jakerella/jquery-mockjax], as of writing the code you must delete from this file is fairly self explanatory. Once thinned run this `IncludeMockScript("PathToMockJax.js")`
 
 Finally...
 
