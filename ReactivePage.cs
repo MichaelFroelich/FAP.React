@@ -601,24 +601,24 @@ namespace FAP
 				return false;
 			}
 		}
-		
+		/// <summary>
 		/// http://stackoverflow.com/questions/3524317/regex-to-strip-line-comments-from-c-sharp/3524689#3524689
 		/// Thank you Timwi
+		/// </summary>
+		/// <returns>The comments.</returns>
 		private string removeComments(string input)
 		{
 			const string blockComments = @"/\*(.*?)\*/";
 			const string lineComments = @"//(.*?)\r?\n";
 			const string strings = @"""((\\[^\n]|[^""\n])*)""";
 			const string verbatimStrings = @"@(""[^""]*"")+";
-			return System.Text.RegularExpressions.Regex.Replace(input,
-				                   blockComments + "|" + lineComments + "|" + strings + "|" + verbatimStrings,
-				                   me => {
+			return System.Text.RegularExpressions.Regex.Replace(input, 
+				blockComments + "|" + lineComments + "|" + strings + "|" + verbatimStrings,
+               me => {
 					if (me.Value.StartsWith("/*") || me.Value.StartsWith("//"))
 						return me.Value.StartsWith("//") ? Environment.NewLine : "";
-					// Keep the literal strings
-					return me.Value;
-				},
-				                   System.Text.RegularExpressions.RegexOptions.Singleline);
+					return me.Value;// Keep the literal strings
+				}, System.Text.RegularExpressions.RegexOptions.Singleline);
 		}
 
 		/// <summary>
@@ -627,23 +627,14 @@ namespace FAP
 		private class Component
 		{
 			public const string REACT = "\n\t\t\t<script src='https://unpkg.com/react@latest/dist/react.min.js'></script>";
-
 			public const string REACTDOM = "\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom.min.js'></script>";
-
 			public static readonly string BABEL = "\n\t\t\t<script src='https://unpkg.com/babel-standalone@" + BabelVersion + "/babel.min.js'></script>";
-
 			public const string JQUERY = "\n\t\t\t<script src='http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js'></script>";
-
 			public const string BabelType = "\n\t\t<script type=\"text/babel\">\n\n";
-
 			public const string RegularType = "\n\t\t<script>";
-
 			public const string OPENINGHEADER = "<!DOCTYPE html>\n\t<html>\n\t\t<head>\n\t\t\t\n";
-
 			public const string CLOSINGHEADER = "\n\t\t\t\n\t\t</head>\n\t\t<body>\n";
-
 			public const string FOOTER = "\n\t\t</body>\n\t</html>";
-
 			internal const string MOCKJQUERY = "https://raw.githubusercontent.com/MichaelFroelich/jquery-mockjax/master/src/jquery.mockjax.js";
 
 			public bool Webscriptpack = false;
