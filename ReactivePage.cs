@@ -142,7 +142,7 @@ namespace FAP
 		/// </summary>
 		public bool IncludeJQuery {
 			get {
-				return includeJQuery;
+				return !String.IsNullOrEmpty(cvars.Scripts[3]);
 			}
 
 			set {
@@ -157,14 +157,12 @@ namespace FAP
 			}
 		}
 
-		private bool includeBabel = true;
-
 		/// <summary>
 		/// Set false to not include the Babel Script library as a hosted script in the resultant HTML from this page. Also enable the script type as babel for client side transpiling.
 		/// </summary>
 		public bool IncludeBable {
 			get {
-				return includeBabel;
+				return !String.IsNullOrEmpty(cvars.Scripts[2]);
 			}
 
 			set {
@@ -175,18 +173,15 @@ namespace FAP
 				if (value) {
 					s[2] = Component.BABEL;
 				}
-				includeBabel = value;
 			}
 		}
-
-		private bool includeReact;
 
 		/// <summary>
 		/// Set false to not include the react libraries and babel as a hosted scripts when using the SPA. Set true otherwise. Default is true.
 		/// </summary>
 		public bool IncludeReact {
 			get {
-				return includeReact;
+				return !String.IsNullOrEmpty(cvars.Scripts[0]);
 			}
 
 			set {
@@ -194,14 +189,11 @@ namespace FAP
 				if (!value) {
 					s[0] = String.Empty;
 					s[1] = String.Empty;
-					s[2] = String.Empty;
 				}
 				if (value) {
 					s[0] = Component.REACT;
 					s[1] = Component.REACTDOM;
-					s[2] = Component.BABEL;
 				}
-				includeReact = value;
 			}
 		}
 		static int ecmaStage = 1;
@@ -498,11 +490,11 @@ namespace FAP
 						html = component.RenderHtml();
 					if (IsSPA) {
 						var output = new StringBuilder(Component.OPENINGHEADER + cvars.Metadata + cvars.Style + Component.CLOSINGHEADER + html);
-
-						for (int i = 0; i < cvars.Scripts.Count; i++) {
-							if (!String.IsNullOrEmpty(cvars.Scripts[i]))
-								output.Append(cvars.Scripts[i]);
-						}
+						if(!cvars.Webscriptpack)
+							for (int i = 0; i < cvars.Scripts.Count; i++) {
+								if (!String.IsNullOrEmpty(cvars.Scripts[i]))
+									output.Append(cvars.Scripts[i]);
+							}
 						bool hasBabel = !String.IsNullOrEmpty(cvars.Scripts[2]);
 						foreach (Script s in cvars.ComponentScriptPathinfo.Values) {
 							if (hasBabel && s.isJSX) {
@@ -519,7 +511,7 @@ namespace FAP
 							}
 							output.Append("\n\n</script>\n\n");
 						} 
-						if (hasreact) /* && hasBabel)
+						if (hasreact || cvars.Webscriptpack) /* && hasBabel)
                             output.Append(Component.BableType + component.RenderJavaScript() + "\n\n</script>\n\n");
                         else*/
                             output.Append(Component.RegularType + component.RenderJavaScript() + "\n\n</script>\n\n");
@@ -547,16 +539,18 @@ namespace FAP
 		/// 	This is the project folder.
 		/// </summary>
 		/// <value>The js folder</value>
-		public string JsFolder { get; set; } = "../../js";
+		public static string JsFolder { get; set; } = "../../js";
 
 		/// <summary>
-		/// Loads either React and jQuery, depending on which is enabled, from the web and then into the ReactJS.NET engine
-		/// Protip: Run this before adding scripts you merely want sourced within script tags
+		/// Loads all enabled hosted script sources, including the default scripts and the scripts added by IncludeScript(*, false)
+		/// from the web and then into the ReactJS.NET engine. Usage of this function disables all hosted script sourcing.
+		/// Hint: scripts added after running this function will still appear as hosted script sources
 		/// </summary>
 		public bool GetScriptsFromWeb()
 		{
 			try {
-				var output = new StringBuilder();
+				var outputWeb = new StringBuilder();	 //Scripts that require sourcing and execution
+				var outputDefaults = new StringBuilder();//Scripts that require sourcing but not execution
 				System.Net.WebClient client = new System.Net.WebClient();
 				for (int i = 0; i < cvars.Scripts.Count; i++) {
 					string urls = cvars.Scripts[i];
@@ -565,7 +559,7 @@ namespace FAP
 						int end = urls.LastIndexOf((char)39);
 						string url = urls.Substring(start, end - start);
 						if (i == 3 && EcmaStage != 0) { //There is no point loading the real jQuery at this point
-							output.Append(client.DownloadString(url)).Append("\n");
+							outputDefaults.Append(client.DownloadString(url)).Append("\n");
 							url = Component.MOCKJQUERY;
 							string webget = client.DownloadString(url);
 							var jquerymockpath = System.IO.Path.Combine(JsFolder, "jquerymock.js");
@@ -573,20 +567,34 @@ namespace FAP
 							ReactSiteConfiguration.Configuration.SetReuseJavaScriptEngines(false).AddScript(jquerymockpath);
 						} else if (IsURL(url)) {
 							string webget = client.DownloadString(url);
-							if (url.EndsWith(".jsx"))
-								output.Append(ReactEnvironment.Current.Babel.Transform(webget));
+							var outputCurrent = (i < 3) ? outputDefaults : outputWeb;
+							if (url.EndsWith(".jsx")){
+								outputCurrent.Append(ReactEnvironment.Current.Babel.Transform(webget));
+							}
 							else
-								output.Append(webget);
-							output.Append("\n");
+								outputCurrent.Append(webget);
+							outputCurrent.Append("\n");
 						}
+						cvars.Scripts[i] = String.Empty;
 					}
 				}
-				if (output.Length > 0) {
+				if (outputWeb.Length > 0) {
 					var p = System.IO.Path.Combine(JsFolder, "web.js");
-					File.WriteAllText(p, output.ToString());
+					File.WriteAllText(p, outputWeb.ToString());
 					IncludeScript(p);
-					cvars.Webscriptpack = true;
 				}
+				if (outputDefaults.Length > 0) {
+					var p = System.IO.Path.Combine(JsFolder, "react.js");
+					File.WriteAllText(p, outputDefaults.ToString());
+					cvars.ComponentScriptPathinfo.Add(p.ToString(),
+						new Script{
+							ComponentScript = outputDefaults.ToString(),
+							isJSX = false,
+							ScriptPath = p.ToString(),
+							Size = new FileInfo(p.ToString()).Length
+					});
+				}
+				cvars.Webscriptpack = true;
 				return true;
 			} catch (Exception e) {
 				Console.Error.WriteLine("14: Getting scripts from Web has failed " + e.Message);
@@ -638,6 +646,7 @@ namespace FAP
 			};
 
 			public Dictionary<string,Script> ComponentScriptPathinfo = new Dictionary<string,Script>();
+
 		}
 
 		private class Script
