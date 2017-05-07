@@ -580,12 +580,12 @@ namespace FAP
 				}
 				if (outputWeb.Length > 0) {
 					var p = System.IO.Path.Combine(JsFolder, "web.js");
-					File.WriteAllText(p, outputWeb.ToString());
+					File.WriteAllText(p, removeComments(outputWeb.ToString()));
 					IncludeScript(p);
 				}
 				if (outputDefaults.Length > 0) {
 					var p = System.IO.Path.Combine(JsFolder, "react.js");
-					File.WriteAllText(p, outputDefaults.ToString());
+					File.WriteAllText(p, removeComments(outputDefaults.ToString()));
 					cvars.ComponentScriptPathinfo.Add(p.ToString(),
 						new Script{
 							ComponentScript = outputDefaults.ToString(),
@@ -601,15 +601,37 @@ namespace FAP
 				return false;
 			}
 		}
+		
+		/// http://stackoverflow.com/questions/3524317/regex-to-strip-line-comments-from-c-sharp/3524689#3524689
+		/// Thank you Timwi
+		private string removeComments(string input)
+		{
+			const string blockComments = @"/\*(.*?)\*/";
+			const string lineComments = @"//(.*?)\r?\n";
+			const string strings = @"""((\\[^\n]|[^""\n])*)""";
+			const string verbatimStrings = @"@(""[^""]*"")+";
+			return System.Text.RegularExpressions.Regex.Replace(input,
+				                   blockComments + "|" + lineComments + "|" + strings + "|" + verbatimStrings,
+				                   me => {
+					if (me.Value.StartsWith("/*") || me.Value.StartsWith("//"))
+						return me.Value.StartsWith("//") ? Environment.NewLine : "";
+					// Keep the literal strings
+					return me.Value;
+				},
+				                   System.Text.RegularExpressions.RegexOptions.Singleline);
+		}
 
 		/// <summary>
 		/// Private class used as a sort of smart structure
 		/// </summary>
 		private class Component
 		{
-			public const string REACT = "\n\t\t\t<script src='https://unpkg.com/react@latest/dist/react.js'></script>";
-			public const string REACTDOM = "\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom.js'></script>";
+			public const string REACT = "\n\t\t\t<script src='https://unpkg.com/react@latest/dist/react.min.js'></script>";
+
+			public const string REACTDOM = "\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom.min.js'></script>";
+
 			public static readonly string BABEL = "\n\t\t\t<script src='https://unpkg.com/babel-standalone@" + BabelVersion + "/babel.min.js'></script>";
+
 			public const string JQUERY = "\n\t\t\t<script src='http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js'></script>";
 
 			public const string BabelType = "\n\t\t<script type=\"text/babel\">\n\n";
