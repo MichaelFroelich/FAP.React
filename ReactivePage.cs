@@ -135,8 +135,6 @@ namespace FAP
 			}
 		}
 
-		private bool includeJQuery = true;
-
 		/// <summary>
 		/// Set false to not include the jQuery library as a hosted script in the resultant HTML from this page. Set true otherwise. Default is true.
 		/// </summary>
@@ -153,7 +151,6 @@ namespace FAP
 				if (value) {
 					s[3] = Component.JQUERY;
 				}
-				includeJQuery = value;
 			}
 		}
 
@@ -433,6 +430,7 @@ namespace FAP
 			Initialize();
 			ComponentName = componentName;
 			defaults.Add(path, new Component {
+				Get = get,
 				Props = initialProps,
 				Name = componentName
 			});
@@ -450,7 +448,7 @@ namespace FAP
 		/// <returns></returns>
 		public sealed override string Get(string queryString, string messageContent)
 		{
-			bool debug;
+			bool debug = false;
 			#if DEBUG
 			debug = true;
 			#endif
@@ -458,7 +456,8 @@ namespace FAP
 			try {
 				if (base.get != null)
 					props = JsonConvert.DeserializeObject<object>(base.get(queryString, messageContent));
-				else if (this.get != null) {
+				else if (this.get != null || cvars.Get != null) {
+					if(get == null) get = cvars.Get;
 					props = get(queryString, messageContent);
 					if (props is string) {
 						string propsstring = props as string;
