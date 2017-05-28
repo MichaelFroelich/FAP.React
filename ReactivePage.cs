@@ -81,14 +81,23 @@ namespace FAP
 				defaults[Path] = value;
 			}
 		}
+		private Func<string, string, object> _get;
 
 		/// <summary>
 		/// Set a function which will be called when accessing this page through a "get" HTTP method. Return using
 		/// Encoding.BigEndianUnicode for binary files (no warranties, no guarantees).
 		/// </summary>
 		/// <value>The get function</value>
-		public Func<string, string, object> get {get; set;}
-
+		public Func<string, string, object> get {
+			get {
+				if (_get == null) _get = cvars.Get;
+				return _get;
+			}
+			set {
+				if (cvars.Get == null) cvars.Get = value;
+				_get = value;
+			}
+		}
 
 		/// <summary>
 		/// Shortest interval in which new javascript has to be loaded, 5 seconds is good.
@@ -430,7 +439,6 @@ namespace FAP
 			Initialize();
 			ComponentName = componentName;
 			defaults.Add(path, new Component {
-				Get = get,
 				Props = initialProps,
 				Name = componentName
 			});
