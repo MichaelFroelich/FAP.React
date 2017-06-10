@@ -13,7 +13,7 @@ As of v.5 the basic boilerplate is as follows:
         public Index() : base(nameof(Index), null)  //This constructor will actually be called by FAP.Server
         {                                               //Which isn't great, but all these functions are idempotent
             Engine.MinimiseBabelOutput = false;//This is good for debugging from a browser
-            IncludeScript("main.jsx");      //This is how we build pages in a cross platform system
+            IncludeScript("main.jsx");
             IncludeCSS("css/main.css");     //Input files cannot be defined within the project
             IncludeCSS("css/xbbcode.css");  //It must be defined in the code
             //IsSPA = true;                 //Due to the maturity of the IsSPA functionality, it's now set true as default
