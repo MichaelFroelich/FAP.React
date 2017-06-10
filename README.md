@@ -1,54 +1,46 @@
 # FAP.React
 Extension of the FAP.Page class (ReactivePage) for server side rendering with ReactJS.NET. This is an alternative network solution for ReactJS users, just assign a get function to return a JSON string
 
+As of v.5 the basic boilerplate is as follows:
 ```
-///main.jsx, sitting right next to the binary file in both release and debug folders
-  //
-  //var HelloWorld = React.createClass({
-  //    render() {
-  //        return (
-  //            <a id="hello">
-  //                Hello, I am the {this.props.name}
-  //            </a>
-  //        );
-  //    }
-  //});
-  ///
-  Server server = new Server();
-  
-  //Initialise a reactivePage with default props, you may also extend this class but may not override the Get function
-  var reactivePage = new ReactivePage("hello", "HelloWorld", new { name = "the Computer" });
-  
-  //Define within the lowercase get function whatever logic is used to generate the props
-  reactivePage.get = (a, b) => JsonConvert.SerializeObject(new { name = "not the Computer, but in fact " + a });
-  //This works too. I'll serialise any clearly Json object sent as a string out of good faith to earlier users
-  reactivePage.get = (a, b) => new { name = "not the Computer, but in fact " + a };
-  
-  //Direct FAP.React to the script file that defines the component
-  reactivePage.IncludeScript("main.jsx");
-  
-  //This is better
-  reactivePage.IncludeScripts (new[] {"jquerymock.js","main.jsx"}); //Don't actually include mock files like this
-  reactivePage.IncludeMockScripts( new[] {"jquerymock.js","whatareyoudoinginhere.js"});
-  
-  //Includes Angular JS as a hosted library
-  reactivePage.IncludeScript("https://ajax.googleapis.com/ajax/libs/angularjs/1.4.9/angular.min.js");
-  
-  //Whether or not to include Jquery as a library
-  reactivePage.IncludeJQuery = true;
-  
-  //Whether or not to include React as a library, including react.js and react-dom.js and browser.js for babel
-  reactivePage.IncludeReact = true;
-  
-  //Whether or not this page is a SPA, as in, whether or not to generate HTML preamble or just the html component (good for appending)
-  reactivePage.IsSPA = true;
-  
-  //Finally, add the page to the server
-  server.AddPage(reactivePage);
-  
-  Thread.Sleep(-1); //Never forget to sleep.
-  
+    /// <summary>
+    /// This is the current basic cookie cutter of a FAP.ReactivePage
+    /// Name this class the same as the Component name found in whatever script
+    /// Using "nameof" allows you to rename everything C# side fairly quickly, right click and rename
+    /// </summary>
+    public class Index : ReactivePage
+    {
+        public Index() : base(nameof(Index), null)  //This constructor will actually be called by FAP.Server
+        {                                               //Which isn't great, but all these functions are idempotent
+            Engine.MinimiseBabelOutput = false;//This is good for debugging from a browser
+            IncludeScript("main.jsx");      //This is how we build pages in a cross platform system
+            IncludeCSS("css/main.css");     //Input files cannot be defined within the project
+            IncludeCSS("css/xbbcode.css");  //It must be defined in the code
+            //IsSPA = true;                 //Due to the maturity of the IsSPA functionality, it's now set true as default
+            get = GetDatabase;              //For proficient, safe development, this should be set with a state machine
+          //(this as Page).get = (a,b) => JsonConvert.SerializeObject(GetDatabase(a,b)); //This also works, but why both?
+        }
+        
+        public object GetDatabase(string a, string b)
+        {
+            return (new { name = "not the Computer, but in fact " + a });
+        }
+    }
 ```
+
+And instantiated in regular FAP style by:
+```
+	public static void Main(string[] args)
+	{
+	    ReactivePage.DownloadScripts(); //This line is necessary if you have not downloaded scripts
+	    Index page = new Index();
+	    Server server = new Server(new[] { page });
+	    for(;;)
+	    	Thread.Sleep(-1);
+	}
+```
+Where you may define whatever you like for the Get HTTP method. 
+
 Remember to install [ReactJS](http://reactjs.net/guides/mono.html) if you're using Linux/mono. Alternative, you can use [my build](http://www.michaelfroelich.com/VroomJsNative.so). You'll also need v8, 3.14 is available in the Ubuntu repositories and a Windows version is available [here](https://github.com/MichaelFroelich/vroomjs-core/tree/master/native/compiled).
 
 # How to use from the front end?
@@ -72,7 +64,7 @@ If you already have PHP installed, this might be the best option as it provides 
 Which may be placed where you wish your HTML blobs to appear. This will be executed before returning to the client, so you won't even need to configure a new location, as opposed to all other solutions.
 	
 ### SPA
-Ever so slightly more efficient than using PHP, as the same or fewer systems are involved, but requiring just a little more effort is the Single Page Application, but as of writing only requires setting the IsSPA property to true. You will also need to change your front-facing server's settings, which for NGINX means adding a new location, then FAP.React will return a complete HTML page including script includes and CSS includes specified by location. As only cached HTML is returned from FAP, SEO should work identically to injecting the HTML with PHP without the added benefit of PHP where you might not actually need it.
+Ever so slightly more efficient than using PHP, as the same or fewer systems are involved, but requiring just a little more effort is the Single Page Application, but as of writing is the default for FAP.React. You will also need to change your front-facing server's settings, which for NGINX means adding a new location, then FAP.React will return a complete HTML page including script includes and CSS includes specified by location. As only cached HTML is returned from FAP, SEO should work identically to injecting the HTML with PHP without the added benefit of PHP where you might not actually need it.
 		
 # How to implement the SPA?
 	
@@ -108,7 +100,7 @@ This is essential, as allowing your binary folder to be accessible from your web
 Again, do *not* leave your binary folder open, accessible and visible to the outside world.
 
 ### Include variations
-As of v1.4, there are a few ways to include scripts into your project output.
+As of v.4, there are a few ways to include scripts into your project output.
  1. `IncludeScript("Path",false)` function, with false. This will render it into the output as <script src="Path"
  2. `IncludeScript("Path")` function optionally with true. This will pass it to Babel and paste it as <sсript> Your script here
  3. `IncludeMockScript("Path")` function, which will pass it to Babel but not include it in the output anywhere
