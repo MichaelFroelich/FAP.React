@@ -41,14 +41,13 @@ And instantiated in regular FAP style by:
 ```
 Where you may define whatever you like for the Get HTTP method. 
 
-Remember to install [ReactJS](http://reactjs.net/guides/mono.html) if you're using Linux/mono. Alternative, you can use [my build](http://www.michaelfroelich.com/VroomJsNative.so). You'll also need v8, 3.14 is available in the Ubuntu repositories and a Windows version is available [here](https://github.com/MichaelFroelich/vroomjs-core/tree/master/native/compiled).
+Remember to install [ReactJS](http://reactjs.net/guides/mono.html) if you're using Linux/mono. Alternative, you can use [my build](https://github.com/MichaelFroelich/vroomjs-core/tree/master/native/compiled) for Linux and do remember to run ldconfig in your Linux terminal console. You'll also need v8, 3.14 is available in the Ubuntu repositories and may be installed by `sudo apt-get install libv8-dev`. A Windows version is available [here](https://github.com/MichaelFroelich/vroomjs-core/tree/master/native/compiled).
 
 # How to use from the front end?
-
 As previous of v.3, certain design recommendations have changed.
 
 ### jQuery append
-Using jQuery or by using the function `document.getElementById("wherever").innerHTML()` you can certainly inject HTML snippets from FAP.React. This is the simplest and easiest solution, unfortunately this has no SEO value.
+Using jQuery and setting IsSPA to false or by using the function `document.getElementById("wherever").innerHTML()` you can certainly inject HTML snippets from FAP.React. This is the simplest and easiest solution, unfortunately this has no SEO value.
 ### IFrames
 IFrames actually work and since sometime between 2012 and 2014 are even crawlable by Google's bot. Unfortunately there are still questions about IFrames, namely how using script and CSS from within the IFrame would work. On the other hand, if you are using FAP.React to return pure HTML I doubt there's any real issues. IFraming a SPA would solve this issue, but regardless you will still need to change your front facing server's settings.
 ### php
@@ -78,9 +77,9 @@ return (
 ```
 Which you can find in full at: https://facebook.github.io/react/docs/interactivity-and-dynamic-uis.html
 
-You will need to switch the IncludeReact property as true, and then include a link to your main.jsx if you wish to use reactjs dynamic functions. How you include that link to main.jsx will vary depending on the solution you chose.
+If you wish to use jQuery, you must set the IncludeJQuery property to true. It's recommended that you use your own jQuery mock and include it as a mock script.
 
-For SPA users, this means your main.jsx must be linked from both the client side in HTML and the server side from C#. For a SPA, you must also link it with a pathname understandable from the client side as well as the server side, in fact you probably should also use the IncludeCSS and AddMeta methods as well. For pathnames, you must also direct the method not to use the render machine by including a "false" parameter in the IncludeScript method:
+For SPA users, this means using the variety of Include functions and please use your IDE as the XML documentation is complete. As per the boilerplate at the beginning of this document, I recommend this is either done within the run once constructor or within the static Main method.
 	
 ```
 reactivePage.IncludeScript("http://yourwebsite.com/js/main.jsx",false);
