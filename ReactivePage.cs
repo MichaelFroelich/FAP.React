@@ -214,10 +214,7 @@ namespace FAP
                 }
             }
         }
-
-
-
-        private static int ecmaStage = 1;
+        
         /// <summary>
         /// Gets or sets the ECMA stage. This is passed into Babel as a preset of "stage-*"
         /// 0 uses ECMA script proposal features, there are more proposals.
@@ -227,7 +224,11 @@ namespace FAP
         public static int EcmaStage
         {
             get {
-                return ecmaStage;
+                string old = Engine.BabelPresets.Where(s => s.StartsWith("stage-")).FirstOrDefault();
+                int ecmaStage;
+                if (int.TryParse(old.Substring("stage-".Length, 1), out ecmaStage))
+                    return ecmaStage;
+                return 2;
             }
             set {
                 if (value >= 0 && value <= 3) {
@@ -235,7 +236,6 @@ namespace FAP
                         string old = Engine.BabelPresets.Where(s => s.StartsWith("stage-")).FirstOrDefault();
                         Engine.BabelPresets.Remove(old);
                         Engine.BabelPresets.Add(("stage-" + value.ToString()));
-                        ecmaStage = value;
                     }
                 }
             }
@@ -300,7 +300,7 @@ namespace FAP
         {
             string style = null;
             if (File.Exists(Pathname))
-                style += "\t\t\t<style>\n" + File.ReadAllLines(Pathname) + "\t\t\t</style>\n";
+                style += "\t\t\t<style>\n" + File.ReadAllText(Pathname) + "\t\t\t</style>\n";
             else
                 style += "\t\t\t<link rel=\"stylesheet\" href=\"" + Pathname + "\">\n";
             if (!cvars.Style.Contains(style)) {
@@ -398,21 +398,108 @@ namespace FAP
                             loadScriptFile(s, foundpath);
                             cvars.ComponentScriptPathinfo.Add(foundpath, s);
                         }
-                    /*string currentDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
-                    string scriptFullPath = System.IO.Path.Combine(currentDirectory, Pathname); //I actually have no idea what I was doing here, I leave commented code for learning reasons
-                    if (s.isJSX || Type != null) {
-                        //ReactSiteConfiguration.Configuration.SetReuseJavaScriptEngines(false).AddScript(Pathname);
-                        Engine.IncludeScript(Pathname, true); //Old React.NET rendering code above, I have no idea how those were loaded
-                    }
-                    else {
-                        //ReactSiteConfiguration.Configuration.SetReuseJavaScriptEngines(false).AddScriptWithoutTransform(Pathname);
-                        Engine.IncludeScript(Pathname, false);
-                    }*/
                 }
                 catch (Exception e) {
                     Console.Error.WriteLine("10: FAP.React script include error: \n" + e.Message);
                 }
             }
+        }
+        /// <summary>
+        /// Creates an array of reactive pages based on the components found within the specified folder
+        /// On failure, it will continually check away from the specified folder
+        /// </summary>
+        /// <param name="JavascriptFolder">Folder to source  scripts from</param>
+        /// <returns></returns>
+        public static List<ReactivePage> CreateSite(string JavascriptFolder) => CreateSite(new[] { JavascriptFolder });
+
+        /// <summary>
+        /// Creates an array of reactive pages based on the components found within the specified folder
+        /// On failure, it will continually check away from the specified folder
+        /// </summary>
+        /// <param name="JavascriptFolder">Folder to source  scripts from</param>
+        /// <returns></returns>
+        public static List<ReactivePage> CreateSite(IEnumerable<string> JavascriptFolder = null)
+        {
+            string[] jfolder;
+            List<ReactivePage> pages = new List<ReactivePage>() ;
+            if (JavascriptFolder == null)
+                jfolder = new[] { JsFolder };
+            else
+                jfolder = JavascriptFolder.ToArray();
+            foreach (string s in jfolder) {
+                if (Directory.Exists(s)) {
+                    var potentialFiles = Directory.GetFiles(s, "*", SearchOption.AllDirectories)
+                        .Select(System.IO.Path.GetFullPath)
+                        .Where(isscript)
+                        .Where(n => new FileInfo(n).Length > 16 )
+                        .ToList();
+                    foreach (string files in potentialFiles) {
+                        int renderfunctionfound = -1;
+                        string componentNameArea;
+                        var file = File.ReadAllText(files);
+                        string[] scriptLines;
+                        if ((renderfunctionfound = file.IndexOf("render()")) > 0 ||
+                            (renderfunctionfound = file.IndexOf(".render =")) > 0 ||
+                            (renderfunctionfound = file.IndexOf(".render=")) > 0 ||
+                            (renderfunctionfound = file.IndexOf("render:")) > 0) {
+                            componentNameArea = file.Substring(0, renderfunctionfound);
+                            scriptLines = componentNameArea.Split('\n');
+                            int removethis = -1;
+                            string componentname = null;
+                            for (int i = scriptLines.Length - 1; i >= 0 && string.IsNullOrEmpty(componentname); i--) {
+                                if (char.IsLetter(scriptLines[i][0])) { //Forced minimal indentation. Sorry!
+                                    componentname = scriptLines[i];
+                                    while(removethis < 0)
+                                    switch (componentname[0]) {
+                                        case ('c'): //class //const
+                                            if (componentname.StartsWith("const"))
+                                                componentname = componentname.Substring(5, componentname.Length - 5).TrimStart();
+                                            else
+                                                removethis = 5;
+                                            break;
+                                        case ('l'):
+                                        case ('v'):
+                                            removethis = 3;
+                                            break;
+                                        case ('f'): //function 
+                                            removethis = 8;
+                                            break;
+                                        case ('e'): //oh no.. export 
+                                            if (componentname.StartsWith("export"))
+                                                componentname = componentname.Substring(6, componentname.Length - 6).TrimStart();
+                                            if (scriptLines[i].Contains("=")) {
+                                                removethis = 0;
+                                            }
+                                            break;
+                                        default:
+                                            if (scriptLines[i].Contains("=")) {
+                                                removethis = 0;
+                                            }
+                                            break;
+                                    }
+                                    componentname = componentname.Substring(removethis, componentname.Length - removethis);
+                                    if( ((removethis = componentname.IndexOf(" extends ")) > 0) ||
+                                        ((removethis = componentname.IndexOf("=")) > 0) ||
+                                        ((removethis = componentname.IndexOf("(")) > 0)) {
+                                        componentname = componentname.Substring(0,removethis).Trim();
+                                    }
+                                }
+                            }
+                            if (componentname != null && componentname.All(c => char.IsLetterOrDigit(c) || c == '_')) {
+                                var nrp = new ReactivePage(componentname);
+                                nrp.IncludeScript(files);
+                                pages.Add(nrp);
+                            }
+                        }
+                    }
+                }
+            }
+            if(pages.Count <= 0) {
+                string newpath = System.IO.Path.Combine(jfolder[0], "../");
+                if (Directory.Exists(newpath))
+                    return CreateSite(newpath);
+            }
+            return pages;
         }
         /// <summary>
         /// Adds scripts for both the ReactJS engine as well as to be included within script tags on the resultant page.
@@ -635,9 +722,13 @@ namespace FAP
                 !JToken.DeepEquals(JToken.FromObject(props), JToken.FromObject(oldprops))) {
                 cvars.Changed = false; //FYI this feature will not work perfectly on a live system, not that anyone would ever do that.. right?
                 oldprops = props;
-                if (sprops == null)
-                    sprops = JsonConvert.SerializeObject(props);
                 try {
+                    if (sprops == null)
+                        if (props == null || (props as string) == string.Empty)
+                            sprops = "null";
+                        else
+                            JsonConvert.SerializeObject(props);
+
                     string html;
                     html = Engine.RenderHtml(ComponentName, sprops, !IncludeReact, cvars);
                     if (IsSPA) {
@@ -707,42 +798,6 @@ else*/
                 DownloadScript("https://unpkg.com/react-dom@latest/dist/react-dom.min.js");
             if (Search("babel.min.js") == null)
                 DownloadScript("https://unpkg.com/babel-standalone@latest/babel.min.js");
-        }
-
-        /// <summary>
-        /// This is a horrible function that should never be used unless you're in a hurry, this bad habit is coming 1.6
-        /// </summary>
-        /// <param name="Server">.to load pages to</param>
-        /// <param name="Path">Path of the index page</param>
-        /// <returns>Assumed index or home page, will not be added to the server unless give a path</returns>
-        internal static ReactivePage PrepareServer(Server Server, string Path = null)
-        {
-            string CurrentDirectory = JsFolder;
-            List<string> potentialFiles = null;
-            if (Path == null)
-                Path = "Index";
-            ReactivePage page = new ReactivePage(Path, new { }); //I have no idea what that is
-            for (int i = 0; i < 3 && (potentialFiles == null || potentialFiles.Count == 0); i++) {
-                if (Directory.Exists(CurrentDirectory)) {
-                    potentialFiles.AddRange(Directory.GetFiles(CurrentDirectory, "*", SearchOption.AllDirectories)
-                        .Select(System.IO.Path.GetFullPath)
-                        .Where(isscript)
-                        .Where(n => new FileInfo(n).Length > 16)
-                        .AsEnumerable());
-                }
-                CurrentDirectory = System.IO.Path.Combine(CurrentDirectory, ".." + System.IO.Path.DirectorySeparatorChar);
-            }
-            DownloadScripts();
-            foreach (var script in potentialFiles) {
-                if (script.Contains("React")) {
-                    page.IncludeScript(script);
-                    //Check here if it's THE component
-                }
-                else
-                    page.IncludeMockScript(script);
-            }
-
-            return new ReactivePage();
         }
 
         /// <summary>
