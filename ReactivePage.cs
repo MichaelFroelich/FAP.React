@@ -624,20 +624,21 @@ namespace FAP
                 Console.Error.WriteLine("11: Json.NET Parse error: " + e.Message);
             }
             //Do not run the rendering machine if the props are unchanged.
+            if (props == null) {
+                props = Props;
+                if (props == null) {
+                    props = string.Empty;       //if the props are still empty, become propsless component
+                    oldprops = string.Empty;    //This is needed to as these additions are for JToken
+                }
+            }
             if (oldprops == null || oldtext == null || cvars.Changed ||
                 !JToken.DeepEquals(JToken.FromObject(props), JToken.FromObject(oldprops))) {
                 cvars.Changed = false; //FYI this feature will not work perfectly on a live system, not that anyone would ever do that.. right?
-                if (props == null) {
-                    props = Props;
-                }
                 oldprops = props;
                 if (sprops == null)
                     sprops = JsonConvert.SerializeObject(props);
                 try {
                     string html;
-                    /*
-                    var environment = React.AssemblyRegistration.Container.Resolve<IReactEnvironment>();
-                    component = environment.CreateComponent(ComponentName, props);*///This was what was previously necessary, supposedly this was pooled?
                     html = Engine.RenderHtml(ComponentName, sprops, !IncludeReact, cvars);
                     if (IsSPA) {
                         var output = new StringBuilder(Component.OPENINGHEADER).Append(cvars.Metadata).Append(cvars.Style).Append(Component.CLOSINGHEADER + html);
