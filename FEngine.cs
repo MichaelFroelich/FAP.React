@@ -1,4 +1,4 @@
-﻿/*
+/*
                 GNU GENERAL PUBLIC LICENSE
                            Version 3, 29 June 2007
      Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
@@ -136,8 +136,10 @@ namespace FAP
             /// <summary>
             /// The babel transformation engine, these scripts are run when loaded so only plain JS is used
             /// </summary>
-            Babel,
-            //Blank
+            Babel
+#if DEBUG
+            , Blank
+#endif
         }
 
         /// <summary>
