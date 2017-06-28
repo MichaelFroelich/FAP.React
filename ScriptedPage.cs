@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -23,7 +23,7 @@ namespace FAP
         /// </summary>
         public static string[] Delimiters { get; set; } = new[] { "{{", "}}" };
 
-        
+
 
 
         private Func<string, string, object> _get;
@@ -65,6 +65,10 @@ namespace FAP
         private string metadata;
 
         object defaultProps = "null";
+        /// <summary>
+        /// Default props, defaults to a string of null so the internal engines can show their specific errors
+        /// </summary>
+        /// <value>The default properties.</value>
         public object DefaultProps
         {
             get {
@@ -72,7 +76,7 @@ namespace FAP
                     defaultProps = (StaticParent as ScriptedPage).defaultProps;
                 return defaultProps;
             }
-            internal set {
+            set {
                 defaultProps = value;
             }
         }
@@ -278,7 +282,7 @@ namespace FAP
                 Rendercache = new Dictionary<int, Tuple<string, object>>();
             TemplateSegments = IncludeTemplate(LocalPath);
 
-            if (DefaultProps != null) { 
+            if (DefaultProps != null) {
                 if (DefaultProps is string) {
                     string propsstring = DefaultProps as string;
                     if ((propsstring[0] == '{' && propsstring[propsstring.Length - 1] == '}') ||
@@ -421,7 +425,7 @@ namespace FAP
                                 default:
                                     oldtext = TemplateSegments.ToString(objectprops ?? newprops);
                                     break;
-                                    
+
                             }
                         }
                     }
@@ -488,7 +492,7 @@ namespace FAP
         /// </summary>
         /// <param name="Path">Path to the script</param>
         public static void IncludeScript(string Path) => ReactivePage.Engine.IncludeScript(Path, ReactivePage.istransformable(Path), FEngine.Machine.Blank);
-        
+
         /// <summary>
         /// If given a valid URL includes a script as a hosted source, otherwise it will load the script from file and even transform it from babel.
         /// All scripts given here will run client side, only script within the template or whatever you can link within there will run.
@@ -548,11 +552,9 @@ namespace FAP
             string output = File.ReadAllText(Path);
             template.Source = output;
             template.FileSize = new FileInfo(Path).Length;
-            var tempTemplates = new List<Segment>();
             Delimiter1 = Delimiters[0];
             Delimiter2 = Delimiters[1];
             while ((d1 = output.IndexOf(Delimiter1, offset)) >= 0 && (d2 = output.IndexOf(Delimiter2, offset)) > 0) {
-                var val = d2 - d1 - offset - Delimiter2.Length;
                 segments = new[] {
                     output.Substring(offset, d1 - offset),
                     output.Substring(d1 + Delimiter1.Length, d2 - d1 - Delimiter2.Length)
@@ -570,7 +572,7 @@ namespace FAP
                     template.Add(segment);
                 }
                 offset = d2 + Delimiters[1].Length; //offset ;)
-                //output = output.Substring(d2 + Delimiters[1].Length); //remove used section
+                                                    //output = output.Substring(d2 + Delimiters[1].Length); //remove used section
             }
             if (output.Length > offset) {
                 output = output.Substring(offset);
@@ -642,6 +644,8 @@ namespace FAP
             /// <returns></returns>
             public string ToString(object props = null)
             {
+                StringBuilder builder = new StringBuilder();
+                string runningresult;
                 if (props == null)
                     props = "null";
                 if (lastprops == null)
@@ -676,14 +680,16 @@ namespace FAP
                                 else {
                                     result = s[i].Content;
                                 }//it's not necessary here
-                                lastresult = GetString(result);
-                                Rendercache.Add(requestedProps.GetHashCode() + s[i].Content.GetHashCode(), new Tuple<string, object>(lastresult, runningProps));
+                                runningresult = GetString(result);
+                                Rendercache.Add(requestedProps.GetHashCode() + s[i].Content.GetHashCode(), new Tuple<string, object>(runningresult, runningProps));
                             }
                             else {
-                                lastresult = tup.Item1;
+                                runningresult = tup.Item1;
                                 runningProps = tup.Item2;
                             }
+                            builder.Append(runningresult);
                         }
+                        lastresult = builder.ToString();
                     }
                 }
                 return lastresult;
@@ -706,7 +712,7 @@ namespace FAP
             {
                 return Hashcode;
             }
-            
+
         }
         [Serializable]
         public class Segment
