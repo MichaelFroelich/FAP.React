@@ -6,6 +6,7 @@
      of this license document, but changing it is not allowed.
         Author: Michael J. Froelich
  */
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -14,10 +15,17 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 namespace FAP
 {
+    /// <summary>
+    /// Runs ReactJS along with a number of options, like transforming code and building a page if necessary.
+    /// This class is not binary serializable but works perfectly fine from manual copying due to using the StaticParent instance 
+    /// </summary>
     public class ReactivePage : Page
     {
+        const int DEFAULTSEARCHDEPTH = 3;
+
         /// <summary>
         /// Fully instanstiated instance of FEngine for Transforming code:
         /// new ReactivePage.Engine.Transform(File.ReadAllText(pathnamehere));
@@ -29,7 +37,7 @@ namespace FAP
         /// <summary>
         /// A list of strings, manipulate if need be by Engine.BabelPresets instead
         /// </summary>
-        public static List<string> BabelPresets => Engine.BabelPresets;
+        public static List<object> BabelPresets => Engine.BabelPresets;
 
         /// <summary>
         /// A list of strings, manipulate if need be by Engine.BabelPlugins instead
@@ -38,30 +46,27 @@ namespace FAP
 
         /// <summary>
         /// Parser options sent to Babylon, what's really transforming code. Set this by making it equal to an anonymous object, such as:
-        /// ReactivePage.ParserOptions = new { allowImportExportEverywhere = true, allowReturnOutsideFunction = true };
-        /// Which are the defaults, since you'd rather more code than less transforming. Alert me if plugins or presets cease working, 
+        /// ReactivePage.Engine.ParserOptions = new { allowImportExportEverywhere = true, allowReturnOutsideFunction = true };
+        /// Which are the defaults, since you'd rather more code than less transforming. Alert me if plugins or presets cease working,
         /// it would be this line of code here. Set to null for the Babel/Babylon's true default.
         /// </summary>
         public static object BabylonParserOptions => Engine.ParserOptions;
 
         private static bool hasinit = false;
-        //Object == default props, used if unspecified in a get function. String == default HTML, including hosted scripts and CSS
-        //These are DEFAULTS, this means they are in some way static but aren't static for all reactive pages.
-        //This unfortunately necessitates using a container, fortunately the container is only accessed if the props are changed
-        internal static Dictionary<string, Component> defaults = new Dictionary<string, Component>();
+
+        private Component ccvars = null;
 
         private Component cvars
         {
             get {
-                if (Path != null)
-                    return defaults[Path];
-                else
-                    return null;
+                if (ccvars == null && StaticParent != null) ccvars = (StaticParent as ReactivePage).cvars;
+                return ccvars; //This is the current optimal solution to the third scope, static, instantiated and readonly
             }
             set {
-                defaults[Path] = value;
+                ccvars = value;
             }
         }
+
         private Func<string, string, object> _get;
 
         /// <summary>
@@ -80,11 +85,13 @@ namespace FAP
                 _get = value;
             }
         }
+
         /// <summary>
         /// Shortest interval in which new javascript has to be loaded, 5 seconds is good.
         /// </summary>
         /// <value>Time</value>
         public static int ScriptReloadTime { get; set; } = 500;
+
         /// <summary>
         /// Freely accessible default props. Will be overidden if props are returned from a get function.
         /// </summary>
@@ -97,7 +104,22 @@ namespace FAP
                 cvars.Props = value;
             }
         }
+
+        /// <summary>
+        /// Sets the page title such as < titl e>Title goes here< /title >
+        /// </summary>
+        public string Title
+        {
+            get {
+                return cvars.Title.Substring(7, (cvars.Title.Length - 8) - 7);
+            }
+            set {
+                cvars.Title = "<title>" + value + "</title>";
+            }
+        }
+
         private string componentName;
+
         private string ComponentName
         {
             get {
@@ -110,8 +132,9 @@ namespace FAP
                 componentName = value;
             }
         }
+
         /// <summary>
-        /// Determines whether or not to generate HTML pre-amble, including script includes, 
+        /// Determines whether or not to generate HTML pre-amble, including script includes,
         /// or to generate just the component's HTML.
         /// </summary>
         public bool IsSPA
@@ -123,6 +146,7 @@ namespace FAP
                 cvars.IsSPA = value;
             }
         }
+
         /// <summary>
         /// Set <c>true</c> to include the jQuery library as a hosted script in the resultant HTML from this page. Default is <c>false</c>.
         /// </summary>
@@ -149,7 +173,7 @@ namespace FAP
             }
         }
 
-        static string DownloadScript(string what)
+        internal static string DownloadScript(string what)
         {
             string path;
             byte[] script = null;
@@ -193,6 +217,7 @@ namespace FAP
                 }
             }
         }
+
         /// <summary>
         /// Set <c>false</c> to not include the react libraries and babel as a hosted scripts when using the SPA.  Default is <c>true</c>.
         /// Setting this to false shall also disable React serverside rendering additions, the ugly stuff. This is a good idea if IsSPA is false.
@@ -214,7 +239,7 @@ namespace FAP
                 }
             }
         }
-        
+
         /// <summary>
         /// Gets or sets the ECMA stage. This is passed into Babel as a preset of "stage-*"
         /// 0 uses ECMA script proposal features, there are more proposals.
@@ -224,7 +249,8 @@ namespace FAP
         public static int EcmaStage
         {
             get {
-                string old = Engine.BabelPresets.Where(s => s.StartsWith("stage-")).FirstOrDefault();
+                string old = Engine.BabelPresets.Where(s => (s is string) && (s as string).StartsWith("stage-")).FirstOrDefault() as string;
+                if (old == null) return -1;
                 int ecmaStage;
                 if (int.TryParse(old.Substring("stage-".Length, 1), out ecmaStage))
                     return ecmaStage;
@@ -233,7 +259,8 @@ namespace FAP
             set {
                 if (value >= 0 && value <= 3) {
                     if (hasinit) {
-                        string old = Engine.BabelPresets.Where(s => s.StartsWith("stage-")).FirstOrDefault();
+                        string old = Engine.BabelPresets.Where(s => (s is string) && (s as string).StartsWith("stage-")).FirstOrDefault() as string;
+                        if (old == null) return;
                         Engine.BabelPresets.Remove(old);
                         Engine.BabelPresets.Add(("stage-" + value.ToString()));
                     }
@@ -248,7 +275,7 @@ namespace FAP
         public static int EcmaYear
         {
             get {
-                string old = Engine.BabelPresets.Where(s => s.StartsWith("es20")).FirstOrDefault();
+                string old = Engine.BabelPresets.Where(s => (s is string) && (s as string).StartsWith("es20")).FirstOrDefault() as string;
                 int year;
                 if (int.TryParse(old.Substring(2, 4), out year))
                     return year;
@@ -258,7 +285,7 @@ namespace FAP
                 if (value >= 2015 && value <= 2017) {
                     if (hasinit) {
                         //ReactSiteConfiguration.Configuration.BabelConfig.Presets.Remove("es" + ecmaYear + "-no-commonjs");
-                        string old = Engine.BabelPresets.Where(s => s.StartsWith("es20")).FirstOrDefault();
+                        string old = Engine.BabelPresets.Where(s => (s is string) && (s as string).StartsWith("es20")).FirstOrDefault() as string;
                         string rest = old.Substring(6, old.Length - 6);
                         if (!string.IsNullOrEmpty(rest) && !string.IsNullOrEmpty(old)) {
                             Engine.BabelPresets.Remove(old);
@@ -274,7 +301,7 @@ namespace FAP
         /// <summary>
         /// Initialize this instance.
         /// </summary>
-        private static void Initialize()
+        internal static void Initialize()
         {
             if (hasinit)
                 return;
@@ -290,6 +317,7 @@ namespace FAP
                                     //defaults = new Dictionary<string, Tuple<object, string>>();
             hasinit = true;
         }
+
         /// <summary>
         /// If given a valid path to a local file, will include the CSS as an internal style sheet
         /// Otherwise, any string given will be considered a script source
@@ -307,6 +335,7 @@ namespace FAP
                 cvars.Style += style;
             }
         }
+
         /// <summary>
         /// If given a valid path to a local file, will include the CSS as an internal style sheet
         /// Otherwise, any string given will be considered a script source
@@ -331,6 +360,7 @@ namespace FAP
             if (!cvars.Metadata.Contains(metad))
                 cvars.Metadata += metad;
         }
+
         /// <summary>
         /// As the AddMeta, adds a charset (such as utf-8) to a single page application
         /// This will not change FAP's charset
@@ -366,7 +396,7 @@ namespace FAP
                     if (s.isJSX) {
                         toadd = ("\n\t\t<script type=\"text/babel\" src='" + Pathname + "'></script>");
                     }
-                    if (Type != null)
+                    else if (Type != null)
                         toadd = (string.Format("\n\t\t<script type=\"text/{0}\"  src=\"{1}\"></script>", Type, Pathname));
                     else {
                         toadd = ("\n\t\t<script src='" + Pathname + "'></script>");
@@ -404,24 +434,27 @@ namespace FAP
                 }
             }
         }
+
         /// <summary>
-        /// Creates an array of reactive pages based on the components found within the specified folder
-        /// On failure, it will continually check away from the specified folder
+        /// Creates an array of reactive pages based on the components found within scripts of the specified folder.
+        /// Only the first component found will be included. On failure, it will continually check a layer deeper
+        /// from the specified folder
         /// </summary>
         /// <param name="JavascriptFolder">Folder to source  scripts from</param>
-        /// <returns></returns>
+        /// <returns>A list of ReactivePages with any found components</returns>
         public static List<ReactivePage> CreateSite(string JavascriptFolder) => CreateSite(new[] { JavascriptFolder });
 
         /// <summary>
-        /// Creates an array of reactive pages based on the components found within the specified folder
-        /// On failure, it will continually check away from the specified folder
+        /// Creates an array of reactive pages based on the components found within scripts of the specified folder.
+        /// Only the first component found will be included. On failure, it will continually check a layer deeper
+        /// from the specified folder until no directory exists. This function reminds you function begins with fun!
         /// </summary>
         /// <param name="JavascriptFolder">Folder to source  scripts from</param>
-        /// <returns></returns>
+        /// <returns>A list of ReactivePages with any found components</returns>
         public static List<ReactivePage> CreateSite(IEnumerable<string> JavascriptFolder = null)
         {
             string[] jfolder;
-            List<ReactivePage> pages = new List<ReactivePage>() ;
+            List<ReactivePage> pages = new List<ReactivePage>();
             if (JavascriptFolder == null)
                 jfolder = new[] { JsFolder };
             else
@@ -431,76 +464,90 @@ namespace FAP
                     var potentialFiles = Directory.GetFiles(s, "*", SearchOption.AllDirectories)
                         .Select(System.IO.Path.GetFullPath)
                         .Where(isscript)
-                        .Where(n => new FileInfo(n).Length > 16 )
+                        .Where(n => new FileInfo(n).Length > 16)
                         .ToList();
                     foreach (string files in potentialFiles) {
                         int renderfunctionfound = -1;
                         string componentNameArea;
                         var file = File.ReadAllText(files);
+                        bool repeat = true;
                         string[] scriptLines;
-                        if ((renderfunctionfound = file.IndexOf("render()")) > 0 ||
-                            (renderfunctionfound = file.IndexOf(".render =")) > 0 ||
-                            (renderfunctionfound = file.IndexOf(".render=")) > 0 ||
-                            (renderfunctionfound = file.IndexOf("render:")) > 0) {
-                            componentNameArea = file.Substring(0, renderfunctionfound);
-                            scriptLines = componentNameArea.Split('\n');
-                            int removethis = -1;
-                            string componentname = null;
-                            for (int i = scriptLines.Length - 1; i >= 0 && string.IsNullOrEmpty(componentname); i--) {
-                                if (char.IsLetter(scriptLines[i][0])) { //Forced minimal indentation. Sorry!
-                                    componentname = scriptLines[i];
-                                    while(removethis < 0)
-                                    switch (componentname[0]) {
-                                        case ('c'): //class //const
-                                            if (componentname.StartsWith("const"))
-                                                componentname = componentname.Substring(5, componentname.Length - 5).TrimStart();
-                                            else
-                                                removethis = 5;
-                                            break;
-                                        case ('l'):
-                                        case ('v'):
-                                            removethis = 3;
-                                            break;
-                                        case ('f'): //function 
-                                            removethis = 8;
-                                            break;
-                                        case ('e'): //oh no.. export 
-                                            if (componentname.StartsWith("export"))
-                                                componentname = componentname.Substring(6, componentname.Length - 6).TrimStart();
-                                            if (scriptLines[i].Contains("=")) {
-                                                removethis = 0;
+                        while (repeat) {
+                            repeat = false; //only do this again if it finds a Component
+                            if ((renderfunctionfound = file.IndexOf("render()")) > 0 ||
+                                (renderfunctionfound = file.IndexOf(".render =")) > 0 ||
+                                (renderfunctionfound = file.IndexOf(".render=")) > 0 ||
+                                (renderfunctionfound = file.IndexOf("render:")) > 0) {
+                                componentNameArea = file.Substring(0, renderfunctionfound);
+                                scriptLines = componentNameArea.Split('\n');
+                                int removethis = -1;
+                                string componentname = null;
+                                for (int i = scriptLines.Length - 1; i >= 0 && string.IsNullOrEmpty(componentname); i--) {
+                                    if (char.IsLetter(scriptLines[i][0])) { //Forced minimal indentation. Sorry!
+                                        componentname = scriptLines[i];
+                                        while (removethis < 0)
+                                            switch (componentname[0]) {
+                                                case ('c'): //class //const
+                                                    if (componentname.StartsWith("const"))
+                                                        componentname = componentname.Substring(5, componentname.Length - 5).TrimStart();
+                                                    else if (componentname.StartsWith("class"))
+                                                        removethis = 5;
+                                                    break;
+
+                                                case ('l'):
+                                                case ('v'): //
+                                                    if (componentname.StartsWith("let") || componentname.StartsWith("var"))
+                                                        removethis = 3;
+                                                    break;
+
+                                                case ('f'): //function
+                                                    if (componentname.StartsWith("function"))
+                                                        removethis = 8;
+                                                    break;
+
+                                                case ('e'): //oh no.. export
+                                                    if (componentname.StartsWith("export"))
+                                                        componentname = componentname.Substring(6, componentname.Length - 6).TrimStart();
+                                                    break;
+
+                                                default:
+                                                    if (scriptLines[i].Contains("=")) {
+                                                        removethis = 0;
+                                                    }
+                                                    break;
                                             }
-                                            break;
-                                        default:
-                                            if (scriptLines[i].Contains("=")) {
-                                                removethis = 0;
-                                            }
-                                            break;
-                                    }
-                                    componentname = componentname.Substring(removethis, componentname.Length - removethis);
-                                    if( ((removethis = componentname.IndexOf(" extends ")) > 0) ||
-                                        ((removethis = componentname.IndexOf("=")) > 0) ||
-                                        ((removethis = componentname.IndexOf("(")) > 0)) {
-                                        componentname = componentname.Substring(0,removethis).Trim();
+                                        if (removethis < 0 && char.IsLetter(componentname[0]) && scriptLines[i].Contains("="))
+                                            removethis = 0;
+
+                                        componentname = componentname.Substring(removethis, componentname.Length - removethis);
+                                        if (((removethis = componentname.IndexOf(" extends ")) > 0) ||
+                                            ((removethis = componentname.IndexOf("=")) > 0) ||
+                                            ((removethis = componentname.IndexOf("(")) > 0)) {
+                                            componentname = componentname.Substring(0, removethis).Trim();
+                                        }
                                     }
                                 }
-                            }
-                            if (componentname != null && componentname.All(c => char.IsLetterOrDigit(c) || c == '_')) {
-                                var nrp = new ReactivePage(componentname);
-                                nrp.IncludeScript(files);
-                                pages.Add(nrp);
+                                if (componentname != null && componentname.All(c => char.IsLetterOrDigit(c) || c == '_')) {
+                                    var nrp = new ReactivePage(componentname);
+                                    nrp.IncludeScript(files);
+                                    pages.Add(nrp);
+                                    file = file.Substring(componentNameArea.Length);
+                                    repeat = true;
+                                    renderfunctionfound = -1;
+                                }
                             }
                         }
                     }
                 }
             }
-            if(pages.Count <= 0) {
+            if (pages.Count <= 0) {
                 string newpath = System.IO.Path.Combine(jfolder[0], "../");
                 if (Directory.Exists(newpath))
                     return CreateSite(newpath);
             }
             return pages;
         }
+
         /// <summary>
         /// Adds scripts for both the ReactJS engine as well as to be included within script tags on the resultant page.
         /// If given a valid URL to "Pathname" or if useRenderMachine is false, this method will create script tags with a source property of your URL.
@@ -522,7 +569,7 @@ namespace FAP
         /// </summary>
         public void IncludeReactAsInternalScripts()
         {
-            var s = ReactivePage.Engine.ReactScriptPaths;
+            var s = Engine.ReactScriptPaths;
             for (int i = 0; i < 2; i++) {
                 if (s[i].Contains("-server")) {
                     var path = s[i].Remove(s[i].LastIndexOf("-server"), "-server".Length);
@@ -533,12 +580,13 @@ namespace FAP
                     }
                 }
                 else
-                    IncludeScript(Search(s[i]), false); //I prever this over relying on the order of a list
+                    IncludeScript(Search(s[i]), false); //I prefer this over relying on the order of a list
             }
             cvars.InternalReact = true; //No going back from this
         }
+
         /// <summary>
-        /// Used to execute scripts for the render machine before for component files, his will not be included in the SPA output. 
+        /// Used to execute scripts for the render machine before for component files, his will not be included in the SPA output.
         /// These scripts will only ever run serverside. They are a step above typings or source map which may be included normally.
         /// For deployment, add the scripts here and add them again with the useRenderMachine as false to decrease initial load.
         /// This will run the script upon instantiating the JS engine but will only run the render function upon a connection.
@@ -563,7 +611,7 @@ namespace FAP
         }
 
         /// <summary>
-        /// Used to execute scripts for the render machine before for component files, his will not be included in the SPA output. 
+        /// Used to execute scripts for the render machine before for component files, his will not be included in the SPA output.
         /// These scripts will only ever run serverside. They are a step above typings or source map which may be included normally.
         /// For deployment, add the scripts here and add them again with the useRenderMachine as false to decrease initial load.
         /// This will run the script upon instantiating the JS engine but will only run the render function upon a connection.
@@ -592,6 +640,7 @@ namespace FAP
                 Engine.IncludeScript(Pathname, false, FEngine.Machine.Babel);
             }
         }
+
         /// <summary>
         /// Incude scripts into the babel transformation engine to allow validation when transforming JSX to js
         /// Use this if you're encountering undefined errors, you must still include the real scripts normally.
@@ -614,6 +663,7 @@ namespace FAP
             IncludeScript(OriginalScript, false);
             IncludeMockScript(TypingOrMock);
         }
+
         /// <summary>
         /// Includes one script as an internal script, either hosted or from file, and the other as a script for the internal engine.
         /// This is useful for popular scripts that break v8 engines without a document or DOM set up, like jQuery.
@@ -637,6 +687,7 @@ namespace FAP
             s.Size = new FileInfo(scriptFullPath).Length;
             s.ScriptPath = scriptFullPath;
         }
+
         /// <summary>
         /// This should be called by FAP when serving and not by the user
         /// </summary>
@@ -655,6 +706,7 @@ namespace FAP
             : this(PathAndComponentName.ToLower(), PathAndComponentName, initialProps)
         {
         }
+
         /// <summary>
         /// This may be called at startup for each component that may be served via FAP
         /// BEFORE calling this constructor, please ensure the react, react-dom-server and babel scripts are somewhere around the binary
@@ -669,16 +721,18 @@ namespace FAP
             //                                          : base(string p, string c, object i)
             Initialize();
             ComponentName = componentName;
-            if (!defaults.ContainsKey(path))
-                defaults.Add(path, new Component {
-                    Path = path,
-                    Props = initialProps,
-                    ComponentScriptPathinfo = new Dictionary<string, Script>(),
-                    Name = componentName
-                });
+            ccvars = new Component {
+                Path = path,
+                Props = initialProps,
+                ComponentScriptPathinfo = new Dictionary<string, Script>(),
+                Name = componentName
+            };
+            Component.ComponentRegistry.Add(Path, ccvars);
         }
+
         private object oldprops;
         private string oldtext;
+
         /// <summary>
         /// Get function, called by FAP internals, not to be called or overidden by users. This will call the get (lowercase) function and deserialise its output for the props object.
         /// </summary>
@@ -700,7 +754,8 @@ namespace FAP
                     if (props is string) {
                         string propsstring = props as string;
                         if ((propsstring[0] == '{' && propsstring[propsstring.Length - 1] == '}') ||
-                            (propsstring[0] == '[' && propsstring[propsstring.Length - 1] == ']')) {
+                            (propsstring[0] == '[' && propsstring[propsstring.Length - 1] == ']') ||
+                            (propsstring[0] == '"' && propsstring[propsstring.Length - 1] == '"')) {
                             props = JsonConvert.DeserializeObject<object>(propsstring);
                             sprops = propsstring; //I still need it in both object and JSON form for comparison and usage respectively
                         }
@@ -728,43 +783,10 @@ namespace FAP
                             sprops = "null";
                         else
                             JsonConvert.SerializeObject(props);
-
                     string html;
                     html = Engine.RenderHtml(ComponentName, sprops, !IncludeReact, cvars);
-                    if (IsSPA) {
-                        var output = new StringBuilder(Component.OPENINGHEADER).Append(cvars.Metadata).Append(cvars.Style).Append(Component.CLOSINGHEADER + html);
-                        int i = cvars.InternalReact ? 2 : 0; //Horrible hack all because I want more options available via changing boolean properties
-                        for (; i < cvars.Scripts.Count; i++) {
-                            if (!string.IsNullOrEmpty(cvars.Scripts[i]))
-                                output.Append(cvars.Scripts[i]);
-                        }
-                        bool hasBabel = !string.IsNullOrEmpty(cvars.Scripts[2]);
-                        foreach (Script s in cvars.ComponentScriptPathinfo.Values) {
-                            if (hasBabel && s.isJSX) {
-                                output.Append(Component.BabelType).Append("\n");
-                            }
-                            else {
-                                output.Append(Component.RegularType).Append("\n");
-                            }
-                            if (s.isJSX && !hasBabel) {
-                                if (string.IsNullOrEmpty(s.RenderedComponentScript))
-                                    s.RenderedComponentScript = Engine.TransformCode(s.ComponentScript);//ReactEnvironment.Current.Babel.Transform(s.ComponentScript);
-                                output.Append(s.RenderedComponentScript);
-                            }
-                            else {
-                                output.Append(s.ComponentScript);
-                            }
-                            output.Append("\n\t\t</script>");
-                        }
-                        if (IncludeReact)
-                            output.Append(Component.RegularType).Append(Engine.RenderJavaScript(componentName, sprops)).Append("</script>\n");
-                        /* && hasBabel)                            
-output.Append(Component.BableType + component.RenderJavaScript() + "\n\n</script>\n\n");
-else*/
-                        //output.Append(Component.RegularType + component.RenderJavaScript() + "\n\n</script>\n\n");
-                        output.Append(Component.FOOTER);
-                        oldtext = output.ToString();
-                    }
+                    if (IsSPA) 
+                        oldtext = SpaBuilder(IncludeReact, html, sprops, cvars);
                     else
                         oldtext = html;
                 }
@@ -776,7 +798,47 @@ else*/
             }
             return oldtext;
         }
-        private static bool IsURL(string source)
+        /// <summary>
+        /// Used for building SPAs, entire webpages returned as strings
+        /// </summary>
+        /// <param name="IncludeReact">Whether or not to run the ReactDOM.render function</param>
+        /// <param name="html">Child HTML</param>
+        /// <param name="sprops">Properties already serialised</param>
+        /// <param name="cvars">All the properties/things I found warranted the mediant scope such as page title, styles and meta data</param>
+        /// <returns></returns>
+        internal static string SpaBuilder(bool IncludeReact, string html, string sprops, Component cvars)
+        {
+            var output = new StringBuilder(Component.OPENINGHEADER).Append(cvars.Title).Append(cvars.Metadata).Append(cvars.Style).Append(Component.CLOSINGHEADER).Append(html);
+            int i = cvars.InternalReact ? 2 : 0; //Horrible hack all because I want more options available via changing boolean properties
+            for (; i < cvars.Scripts.Count; i++) {
+                if (!string.IsNullOrEmpty(cvars.Scripts[i]))
+                    output.Append(cvars.Scripts[i]);
+            }
+            bool hasBabel = cvars.Scripts != null && cvars.Scripts.Count > 2 && cvars.Scripts.Any(s => (s.TrimStart('\n','\t').StartsWith("<script src=") && s.Contains("babel.")));
+            if(cvars.ComponentScriptPathinfo != null)
+            foreach (Script s in cvars.ComponentScriptPathinfo.Values) {
+                if (hasBabel && s.isJSX) {
+                    output.Append(Component.BabelType).Append("\n");
+                }
+                else {
+                    output.Append(Component.RegularType).Append("\n");
+                }
+                if (s.isJSX && !hasBabel) {
+                    if (string.IsNullOrEmpty(s.RenderedComponentScript))
+                        s.RenderedComponentScript = Engine.TransformCode(s.ComponentScript);//ReactEnvironment.Current.Babel.Transform(s.ComponentScript);
+                    output.Append(s.RenderedComponentScript);
+                }
+                else {
+                    output.Append(s.ComponentScript);
+                }
+                output.Append("\n\t\t</script>");
+            }
+            if (IncludeReact)
+                output.Append(Component.RegularType).Append(Engine.RenderJavaScript(cvars.Name, sprops)).Append("</script>\n");
+            return output.Append(Component.FOOTER).ToString();
+        }
+
+        internal static bool IsURL(string source)
         {
             Uri uriResult;
             return Uri.TryCreate(source, UriKind.Absolute, out uriResult) && ((uriResult.Scheme == Uri.UriSchemeHttp) || (uriResult.Scheme == Uri.UriSchemeHttps));
@@ -805,19 +867,22 @@ else*/
         /// </summary>
         internal class Component
         {
-            bool isrunning = false;
-            public Component()
+            private bool isrunning = false;
+            internal static Dictionary<string, Component> ComponentRegistry { get; set; } = new Dictionary<string, Component>();
+            public Component(bool register = true)
             {
-                Task.Factory.StartNew(scriptRegister);
+                if(register)
+                    Task.Factory.StartNew(scriptRegister);
             }
+
             private async void scriptRegister()
             {
-                await Task.Delay(ReactivePage.ScriptReloadTime);
-                if (ReactivePage.defaults[Path].isrunning == true) //Am I a clone?
+                await Task.Delay(ScriptReloadTime);
+                if (ComponentRegistry.ContainsKey(Path) && ComponentRegistry[Path].isrunning == true) //Am I a clone?
                     return;
                 try {
                     isrunning = true; //this works because the inescapable loop is after this point, but I must have the Path
-                    while (defaults != null) {
+                    while (ComponentRegistry[Path] != null) {
                         isrunning = false;
                         if (ComponentScriptPathinfo != null && ComponentScriptPathinfo.Count > 0) {
                             foreach (Script s in ComponentScriptPathinfo.Values) {
@@ -834,7 +899,7 @@ else*/
                             }
                         }
                         isrunning = true;
-                        await Task.Delay(ReactivePage.ScriptReloadTime);
+                        await Task.Delay(ScriptReloadTime);
                     }
                 }
                 catch (Exception e) {
@@ -844,11 +909,12 @@ else*/
                         Task.Factory.StartNew(scriptRegister);
                 }
             }
+
             internal bool Changed = false;
             public const string REACT = "\n\t\t\t<script src='https://unpkg.com/react@latest/dist/react.min.js'></script>";
             public const string REACTDOM = "\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom.min.js'></script>";
             public const string REACTDOMSERVER = "\n\t\t\t<script src='https://unpkg.com/react-dom@latest/dist/react-dom-server.min.js'></script>";
-            public static readonly string BABEL = "\n\t\t\t<script src='https://unpkg.com/babel-standalone@latest/babel.min.js'></script>";
+            public const string BABEL = "\n\t\t\t<script src='https://unpkg.com/babel-standalone@latest/babel.min.js'></script>";
             public const string JQUERY = "\n\t\t\t<script src='http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js'></script>";
             public const string BabelType = "\n\t\t<script type=\"text/babel\">\n\n";
             public const string RegularType = "\n\t\t<script>";
@@ -861,8 +927,10 @@ else*/
             public bool IsSPA = true;
             public string Name;
             public object Props;
+            public string Title = string.Empty;
             public string Style = string.Empty;
             public string Metadata = string.Empty;
+
             public List<string> Scripts = new List<string> {
                 REACT,
                 REACTDOM,/*
@@ -871,6 +939,7 @@ else*/
 				string.Empty,
                 string.Empty
             };
+
             public Dictionary<string, Script> ComponentScriptPathinfo = new Dictionary<string, Script>();
 
             public Func<string, string, object> Get { get; set; }
@@ -885,56 +954,66 @@ else*/
             public long Size;
         }
 
-
         /// <summary>
         /// Folder to search first for Javascript files, this whole thing doesn't really work without react and maybe babel
         /// Default is Directory.GetCurrentDirectory() which is usually the directory where the binary is, probable elsewhere from Android
         /// The folder closest to the root but isolated from your webserver is best
         /// </summary>
-        public static string JsFolder { get; set; } = Directory.GetCurrentDirectory().ToString();
+        public static string JsFolder
+        {
+            get {
+                return FEngine.JsFolder;
+            }
+            set {
+                FEngine.JsFolder = value;
+            }
+        }
 
-        static bool isscript(string n) =>
+        private static bool isscript(string n) =>
         (n.EndsWith(".js") || istransformable(n) || n.EndsWith(".jsm") || n.EndsWith(".es") || char.IsDigit(n[n.Length - 1]));
 
-        static bool istransformable(string n)
+        internal static bool istransformable(string n)
         => n.EndsWith(".jsx") || n.EndsWith(".ts") || n.EndsWith(".tsx");
+
+        /// <summary>
+        /// Minimum file size in bytes for loaded files, prevents badly named and badly placed fake files from causing exceptions when loaded
+        /// </summary>
+        public static int MinimumFileSize {get; set;} = 4;
+
         /// <summary>
         /// Function used to find the path of scripts. The source is fairly ugly but will find misplaced and even misnamed scripts
         /// </summary>
         /// <param name="scriptName">The name of the scripts</param>
         /// <param name="searchDepth">How many folders deep to search if the script isnt found</param>
         /// <returns></returns>
-        public static string Search(string scriptname, int searchDepth = 4)
+        public static string Search(string scriptname, int searchDepth = DEFAULTSEARCHDEPTH, Func<string,bool> FileTypeFilter = null)
         {
-            if (File.Exists(scriptname) && (new FileInfo(scriptname).Length > 16)) {
+            if (File.Exists(scriptname) && (new FileInfo(scriptname).Length > MinimumFileSize)) {
                 if (string.IsNullOrEmpty(System.IO.Path.GetDirectoryName(scriptname)))
                     scriptname = System.IO.Path.Combine(Directory.GetCurrentDirectory(), scriptname);
                 return scriptname;
             }
+            if (FileTypeFilter == null) FileTypeFilter = isscript;
             const string MIN = ".min";
             string ext = string.Empty;
-            string potentialFolder;
-            try {
-                potentialFolder = System.IO.Path.GetDirectoryName(scriptname);
-            }
-            catch { potentialFolder = null; }
-            if (potentialFolder != null)
+            string potentialFolder = System.IO.Path.GetDirectoryName(scriptname);
+            if (!string.IsNullOrEmpty(potentialFolder))
                 scriptname = scriptname.Substring(potentialFolder.Length, scriptname.Length - potentialFolder.Length); //If a folder is found but a file isn't, assume misplaced file
-            if (isscript(scriptname))
+            if (FileTypeFilter(scriptname))
                 ext = scriptname.Substring(scriptname.LastIndexOf('.'), scriptname.Length - scriptname.LastIndexOf('.'));
             scriptname = scriptname.Remove(scriptname.Length - ext.Length, ext.Length);
             List<string> potentialFiles = null;
-            string CurrentDirectory = string.IsNullOrEmpty(potentialFolder) ? JsFolder : potentialFolder;
+            potentialFolder = string.IsNullOrEmpty(potentialFolder) ? JsFolder : potentialFolder; //one last check
             for (int i = 0; i < searchDepth && (potentialFiles == null || potentialFiles.Count == 0); i++) {
-                if (Directory.Exists(CurrentDirectory)) {
+                if (Directory.Exists(potentialFolder)) {
                     string toSearch = ext == string.Empty ? scriptname + "*" : scriptname + "*" + ext; //scripts always begin with their name, then have version information
-                    potentialFiles = Directory.GetFiles(CurrentDirectory, "*" + toSearch, SearchOption.AllDirectories)
+                    potentialFiles = Directory.GetFiles(potentialFolder, "*" + toSearch, SearchOption.AllDirectories)
                         .Select(System.IO.Path.GetFullPath)
-                        .Where(isscript)
-                        .Where(n => new FileInfo(n).Length > 16)
+                        .Where(FileTypeFilter)
+                        .Where(n => new FileInfo(n).Length > MinimumFileSize)
                         .ToList();
                 }
-                CurrentDirectory = System.IO.Path.Combine(CurrentDirectory, ".." + System.IO.Path.DirectorySeparatorChar);
+                potentialFolder = System.IO.Path.Combine(potentialFolder, ".." + System.IO.Path.DirectorySeparatorChar);
             }
 
             if (potentialFiles.Count == 0) {
