@@ -97,13 +97,13 @@ namespace FAP
                     else
                         ReactScriptPaths[i] = p;
                 }
-            }/*
+            }
             if ((requireisnice = ReactivePage.Search("require")) != null && !ReactScriptPaths.Contains("require")) {
                 ReactScriptPaths.Insert(0, requireisnice); //by default, it's nice to allow require and import like lines, if you're into that and have it around
             }
             if ((commonisalsonice = ReactivePage.Search("common")) != null && !ReactScriptPaths.Contains("common")) {
                 ReactScriptPaths.Insert(0, commonisalsonice); //by default, it's nice to allow require and import like lines, if you're into that and have it around
-            }*/
+            }
             if (babelScriptPaths != null)
                 BabelScriptPaths = babelScriptPaths;
             else {
