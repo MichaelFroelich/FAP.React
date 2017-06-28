@@ -1,4 +1,4 @@
-# FAP.React  [![NuGet](https://img.shields.io/nuget/v/FAP.React.svg?maxAge=2592000)](https://www.nuget.org/packages/FAP.React/) [![Donate](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=michaeljfroelich%40gmail%2ecom&lc=AU&currency_code=AUD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
+# FAP.React  [![NuGet](https://img.shields.io/nuget/v/FAP.React.svg?maxAge=2592000)](https://www.nuget.org/packages/FAP.React/) [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=michaeljfroelich%40gmail%2ecom&lc=AU&currency_code=AUD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
 Extension of the FAP.Page class (ReactivePage) for server side rendering with ReactJS.NET. This is an alternative network solution for ReactJS users, just assign a get function to return a JSON string
 
 As of v.5 the basic boilerplate is as follows:
