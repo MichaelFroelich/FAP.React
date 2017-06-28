@@ -48,18 +48,23 @@ namespace FAP
         /// </summary>
         public static JsPool ReactPool;
 
-#if DEBUG
+        
         public List<string> BlankScriptPaths { get; set; } = new List<string>();
+        /// <summary>
+        /// Originally intended to be a sandbox for debugging and unit testing, but has become a deliberately blank engine intended for the ScriptedPage class
+        /// </summary>
         public static JsPool BlankPool;
 
         private string blankscript;
         private string blankScriptGet() => blankscript ?? String.Empty;
-#endif
+
         private string babelscript;
         private string babelScriptGet() => babelscript ?? String.Empty; //Used to dynamically get the complete scripts
 
         private string reactscript;
         private string reactScriptGet() => reactscript ?? String.Empty;
+
+        public static string JsFolder { get; set; } = Directory.GetCurrentDirectory().ToString();
 
         /// <summary>
         /// Whatever you give me, know that the purpose of this entire class is to run babel.js
@@ -71,54 +76,68 @@ namespace FAP
         /// <param name="blankScriptPaths">Unused to keep memory down, but would have enabled a free sandbox for scripts</param>
         public FEngine(List<string> babelScriptPaths = null, List<string> reactScriptPaths = null, List<string> blankScriptPaths = null)
         {
-            string requireisnice = null;
+            string requireisnice = null;// ReactivePage.Search("require.js");
+            string commonisalsonice = null;// ReactivePage.Search("common.js");
             RenderCache = new Dictionary<int, string>();
             if (!AssemblyLoader._isLoaded && IsWindows) {
                 AssemblyLoader.EnsureLoaded(); //The three lines of code too difficult for the officialised system
             }
             if (reactScriptPaths != null) {
                 ReactScriptPaths = reactScriptPaths;
-                if (ReactivePage.JsFolder == Directory.GetCurrentDirectory().ToString() && File.Exists(reactScriptPaths.FirstOrDefault())) {
-                    ReactivePage.JsFolder = Path.GetDirectoryName(reactScriptPaths[0]); //Get this away from what's usually the executing binary as soon as possible
+                if (JsFolder == Directory.GetCurrentDirectory().ToString() && File.Exists(reactScriptPaths.FirstOrDefault())) {
+                    JsFolder = Path.GetDirectoryName(reactScriptPaths[0]); //Get this away from what's usually the executing binary as soon as possible
                 }
             }
             else {
                 for (int i = 0; i < ReactScriptPaths.Count; i++) {
                     string p;
                     if ((p = ReactivePage.Search(ReactScriptPaths[i])) == null) {
-                        throw new Exception("Cannot find essential script " + ReactScriptPaths[i] + "\nEither set the JS folder from ReactivePage.JsFolder or run the ReactivePage.DownloadScripts function.");
+                        Console.Error.WriteLine("22: Cannot find essential script " + ReactScriptPaths[i] + "\nEither set the JS folder from ReactivePage.JsFolder or run the ReactivePage.DownloadScripts function.");
                     }
                     else
                         ReactScriptPaths[i] = p;
                 }
+            }/*
+            if ((requireisnice = ReactivePage.Search("require")) != null && !ReactScriptPaths.Contains("require")) {
+                ReactScriptPaths.Insert(0, requireisnice); //by default, it's nice to allow require and import like lines, if you're into that and have it around
             }
-            if ((requireisnice = ReactivePage.Search("require")) != null && !ReactScriptPaths.Contains("require"))
-                ReactScriptPaths.Add(requireisnice); //by default, it's nice to allow require and import like lines, if you're into that and have it around
-
+            if ((commonisalsonice = ReactivePage.Search("common")) != null && !ReactScriptPaths.Contains("common")) {
+                ReactScriptPaths.Insert(0, commonisalsonice); //by default, it's nice to allow require and import like lines, if you're into that and have it around
+            }*/
             if (babelScriptPaths != null)
                 BabelScriptPaths = babelScriptPaths;
             else {
                 for (int i = 0; i < BabelScriptPaths.Count; i++) {
                     if ((BabelScriptPaths[i] = ReactivePage.Search(BabelScriptPaths[i])) == null) {
-                        Console.Error.WriteLine("Cannot find babel.js this means any script requiring transformation included will throw errors");
+                        Console.Error.WriteLine("23: Cannot find babel.js this means any script requiring transformation included will throw errors");
                     }
                 }
             }
-            if (!string.IsNullOrEmpty(requireisnice) && !ReactScriptPaths.Contains("require")) {
-                BabelScriptPaths.Add(requireisnice);
+            if (!string.IsNullOrEmpty(requireisnice) && !ReactScriptPaths.Contains("require.js")) {
+                BabelScriptPaths.Insert(0, requireisnice);
             }
-#if DEBUG
+            if (!string.IsNullOrEmpty(commonisalsonice) && !ReactScriptPaths.Contains("common.js")) {
+                BabelScriptPaths.Insert(0, commonisalsonice);
+            }
+
+            if (!string.IsNullOrEmpty(requireisnice) && !BlankScriptPaths.Contains("require.js")) {
+                BlankScriptPaths.Insert(0, requireisnice);
+            }
+            if (!string.IsNullOrEmpty(commonisalsonice) && !BlankScriptPaths.Contains("common.js")) {
+                BlankScriptPaths.Insert(0, commonisalsonice);
+            }
+
             if (blankScriptPaths != null)
                 BlankScriptPaths = blankScriptPaths;
             else
                 for (int i = 0; i < BlankScriptPaths.Count; i++)
                     BlankScriptPaths[i] = ReactivePage.Search(BlankScriptPaths[i]);
-            IncludeScripts(BlankScriptPaths, false, Machine.Blank);
+            IncludeScript(BlankScriptPaths, false, Machine.Blank);
             if (BlankPool == null)
                 BlankPool = new JsPool(babelScriptGet);
-#endif
-            IncludeScripts(ReactScriptPaths, false, Machine.React);
-            IncludeScripts(BabelScriptPaths, false, Machine.Babel);
+
+            IncludeScript(ReactScriptPaths, false, Machine.React);
+            IncludeScript(BabelScriptPaths, false, Machine.Babel);
         }
 
         /// <summary>
@@ -136,10 +155,12 @@ namespace FAP
             /// <summary>
             /// The babel transformation engine, these scripts are run when loaded so only plain JS is used
             /// </summary>
-            Babel
-#if DEBUG
-            , Blank
-#endif
+            Babel,
+            /// <summary>
+            /// Originally meant as a sandbox, now used for Vue and ScriptedPage classes to execute code segments
+            /// </summary>
+            Blank
+
         }
 
         /// <summary>
@@ -151,14 +172,14 @@ namespace FAP
         /// <returns></returns>
         public bool IncludeScript(string Pathname, bool UseRenderMachine = false, Machine machine = Machine.React)
         {
-            return IncludeScripts(new[] { Pathname }, UseRenderMachine, machine);
+            return IncludeScript(new[] { Pathname }, UseRenderMachine, machine);
         }
         /// <summary></summary>
         /// <param name="Pathname">Pathname/Path to the script to include</param>
         /// <param name="UseRenderMachine">Whether or not to transform the code before passing it into the context</param>
         /// <param name="machine">Either FAP.Machine.Render or FAP.Machine.Babel or FAP.Machine.Blank</param>
         /// <returns></returns>
-        public bool IncludeScripts(IEnumerable<string> Pathname, bool UseRenderMachine = false, Machine machine = Machine.React)
+        public bool IncludeScript(IEnumerable<string> Pathname, bool UseRenderMachine = false, Machine machine = Machine.React)
         {
             List<string> scriptsToWork = null;
             List<string> paths = new List<string>();
@@ -173,11 +194,9 @@ namespace FAP
                 case Machine.Babel:
                     scriptsToWork = BabelScriptPaths;
                     break;
-#if DEBUG
                 case Machine.Blank:
                     scriptsToWork = BlankScriptPaths;
                     break;
-#endif
                 default:
                     throw new Exception("Not supported");
             }
@@ -195,12 +214,10 @@ namespace FAP
                         reactscript += scripttowork;
                         ReactPool = new JsPool(reactScriptGet);
                         break;
-#if DEBUG
                     case Machine.Blank:
                         blankscript += scripttowork;
                         BlankPool = new JsPool(blankScriptGet);
                         break;
-#endif
                     case Machine.Babel:
                         babelscript += scripttowork;
                         BabelPool = new JsPool(babelScriptGet);
@@ -208,7 +225,7 @@ namespace FAP
                 }
             }
             else
-                throw new Exception("22: Engine include script error, non existent paths in the script path list of " + machine.ToString());
+                throw new Exception("Engine include script error, non existent paths in the script path list of: \n" + JsonConvert.SerializeObject(paths));
             return true;
         }
 
@@ -285,7 +302,7 @@ namespace FAP
         public string RenderHtml(string ComponentName, string props, bool HtmlOnly = false, IEnumerable<string> InputScripts = null)
         {
             ReactivePage.Component dangerousidea;
-            if (ReactivePage.defaults.TryGetValue(ComponentName.ToLower(), out dangerousidea)) {
+            if (ReactivePage.Component.ComponentRegistry.TryGetValue(ComponentName.ToLower(), out dangerousidea)) {
                 return RenderHtml(ComponentName, props, HtmlOnly, dangerousidea, InputScripts);
             }
             return RenderHtml(ComponentName, props, HtmlOnly, null, InputScripts);
@@ -316,6 +333,8 @@ namespace FAP
             string toReturn;
             int hash = toRender.GetHashCode() + props.GetHashCode(); //It's still faster to hash both these and check if something with this script and props has come than to run javascript
             if (!RenderCache.TryGetValue(hash, out toReturn)) {
+                if (!File.Exists(ReactScriptPaths[0]))
+                    throw new Exception("Render HTML exception, cannot find important react scripts");
                 using (var pool = ReactPool.GetContext()) {
                     var instance = pool.Instance;
                     var output = instance.Execute(toRender, scriptnameforvroom);
@@ -332,10 +351,13 @@ namespace FAP
         /// Minimises the output gained from performing the Transform functions. Default is false.
         /// </summary>
         public bool MinimiseBabelOutput { get; set; } = true;
-        public List<string> BabelPresets { get; set; } = new List<string> {
+        public List<object> BabelPresets { get; set; } = new List<object> {
             "stage-2",//Saves 10ms against other stages when benchmarking debug, as of writing
 			"es2015",
-            "react"
+            "react"/*,
+            new {
+                modules = "commonjs" //this isn't necessary, but making it a List<object> opens up these options
+            }*/
         };
 
         /// <summary>
@@ -367,6 +389,8 @@ namespace FAP
         public string TransformFile(string Pathname, string ScriptName = "Anonymous")
         {
             string toret = null;
+            if (!File.Exists(BabelScriptPaths[0]))
+                throw new Exception("Transform code exception, cannot find important babel script");
             try {
                 if (ScriptName == "Anonymous")
                     ScriptName = Path.GetFileName(Pathname);
@@ -396,6 +420,8 @@ namespace FAP
         public string TransformCode(string code, string ScriptName = "Anonymous")
         {//scriptnameforvroom = Path.GetFileName(components.ComponentScriptPathinfo.FirstOrDefault().Value.ScriptPath);
             string toret = null;
+            if (!File.Exists(BabelScriptPaths[0]))
+                throw new Exception("Transform code exception, cannot find important babel script");
             try {
                 using (var instance = BabelPool.GetContext()) {
                     string plugins = string.Empty;
@@ -414,6 +440,8 @@ namespace FAP
                             TransformCodeTrailer, ScriptName);
                     toret = instance.Instance.GetVariable(RenderOutputVariable) as string;
                 }
+                if (toret.StartsWith("'use strict';"))
+                    toret = toret.Substring("'use strict';".Length);
             }
             catch (Exception e) {
                 Console.Error.WriteLine("20: Babel Transformation Error\n" + e.Message);
@@ -421,6 +449,36 @@ namespace FAP
             return toret;
         }
         static bool IsWindows => (Environment.OSVersion.Platform.ToString().StartsWith("W"));
+        
+        internal string PageBuilder(string ChildHTML, ReactivePage.Component cvars)
+        {
+            var output = new StringBuilder(ReactivePage.Component.OPENINGHEADER).Append(cvars.Title).Append(cvars.Metadata).Append(cvars.Style).Append(ReactivePage.Component.CLOSINGHEADER + ChildHTML);
+            int i = cvars.InternalReact ? 2 : 0; //Horrible hack all because I want more options available via changing boolean properties
+            for (; i < cvars.Scripts.Count; i++) {
+                if (!string.IsNullOrEmpty(cvars.Scripts[i]))
+                    output.Append(cvars.Scripts[i]);
+            }
+            bool hasBabel = !string.IsNullOrEmpty(cvars.Scripts[2]);
+            foreach (ReactivePage.Script s in cvars.ComponentScriptPathinfo.Values) {
+                if (hasBabel && s.isJSX) {
+                    output.Append(ReactivePage.Component.BabelType).Append("\n");
+                }
+                else {
+                    output.Append(ReactivePage.Component.RegularType).Append("\n");
+                }
+                if (s.isJSX && !hasBabel) {
+                    if (string.IsNullOrEmpty(s.RenderedComponentScript))
+                        s.RenderedComponentScript = TransformCode(s.ComponentScript);//ReactEnvironment.Current.Babel.Transform(s.ComponentScript);
+                    output.Append(s.RenderedComponentScript);
+                }
+                else {
+                    output.Append(s.ComponentScript);
+                }
+                output.Append("\n\t\t</script>");
+            }
+            output.Append(ReactivePage.Component.FOOTER);
+            return string.Empty;
+        }
     }
     public class Poolable : IDisposable
     {
@@ -488,15 +546,21 @@ namespace FAP
         /// <param name="StringGenerator"></param>
         public JsPool(Func<string> ScriptGenerator)
         {
-            Pool = new ConcurrentQueue<Poolable>();
-            Generator = () => {
-                string Script = ScriptGenerator();
-                var dasengine = new JsEngine(-1, -1);
-                var newcontext = dasengine.CreateContext();
-                if (!string.IsNullOrEmpty(Script))
-                    newcontext.Execute(Script);
-                return newcontext;
-            };
+            try {
+                Pool = new ConcurrentQueue<Poolable>();
+                Generator = () => {
+                    string Script = ScriptGenerator();
+                    var dasengine = new JsEngine(-1, -1);
+                    var newcontext = dasengine.CreateContext();
+                    if (!string.IsNullOrEmpty(Script)) {
+                        newcontext.Execute(Script);
+                    }
+                    return newcontext;
+                };
+            }
+            catch(Exception e) {
+                throw new Exception("Library parse error review what libraries you use and do not use any that rely on a DOM, " + e.Message,e);
+            }
             Load();
         }
 
